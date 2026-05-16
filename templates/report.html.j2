@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Отчёт — {{ report.source_url }}</title>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #1a1d26;
+      --muted: #5c6370;
+      --border: #e2e6ef;
+      --ok: #0d7a4a;
+      --ok-bg: #e6f5ee;
+      --warn: #9a6700;
+      --warn-bg: #fff8e6;
+      --err: #b42318;
+      --err-bg: #fdecea;
+      --accent: #2563eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 2rem 1rem;
+    }
+    .container { max-width: 960px; margin: 0 auto; }
+    header {
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--border);
+    }
+    header h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    header .meta { color: var(--muted); font-size: 0.9rem; }
+    header .meta a { color: var(--accent); word-break: break-all; }
+    section { margin-bottom: 1.5rem; }
+    h2 {
+      font-size: 1.15rem;
+      margin-bottom: 0.75rem;
+      color: var(--text);
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .stat {
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      border-radius: 8px;
+    }
+    .stat-label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .stat-value { font-size: 1.25rem; font-weight: 600; margin-top: 0.25rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th { background: var(--bg); font-weight: 600; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; }
+    tr:last-child td { border-bottom: none; }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .status-ok { background: var(--ok-bg); color: var(--ok); }
+    .status-warning { background: var(--warn-bg); color: var(--warn); }
+    .status-error { background: var(--err-bg); color: var(--err); }
+    ul.plain { list-style: none; }
+    ul.plain li {
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    ul.plain li:last-child { border-bottom: none; }
+    .warn-item { color: var(--warn); }
+    .err-item { color: var(--err); }
+    .rec-list li {
+      padding: 0.5rem 0 0.5rem 1.25rem;
+      position: relative;
+    }
+    .rec-list li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+    }
+    .empty { color: var(--muted); font-style: italic; }
+    code { font-size: 0.85em; background: var(--bg); padding: 0.1rem 0.35rem; border-radius: 3px; word-break: break-all; }
+    footer { margin-top: 2rem; text-align: center; color: var(--muted); font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Weekly Site Report</h1>
+      <p class="meta">
+        Сайт: <a href="{{ report.source_url }}" target="_blank" rel="noopener">{{ report.source_url }}</a><br>
+        Дата сканирования: {{ report.scanned_at.strftime("%d.%m.%Y %H:%M:%S") }}
+      </p>
+    </header>
+
+    <!-- Общая сводка -->
+    <section>
+      <h2>Общая сводка</h2>
+      <div class="card">
+        <div class="grid-2">
+          <div class="stat">
+            <div class="stat-label">HTTP статус</div>
+            <div class="stat-value">
+              {% if report.page.status_code is not none %}{{ report.page.status_code }}{% else %}—{% endif %}
+            </div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Время ответа</div>
+            <div class="stat-value">
+              {% if report.page.response_time_ms is not none %}{{ report.page.response_time_ms }} мс{% else %}—{% endif %}
+            </div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Предупреждений</div>
+            <div class="stat-value">{{ report.all_warnings|length }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Битых ссылок</div>
+            <div class="stat-value">
+              {% if report.links %}{{ report.links.broken_count }}{% else %}0{% endif %}
+            </div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Форм на странице</div>
+            <div class="stat-value">{{ report.forms|length }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Внутренних ссылок</div>
+            <div class="stat-value">
+              {% if report.links %}{{ report.links.internal_links|length }}{% else %}0{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Доступность -->
+    <section>
+      <h2>Доступность</h2>
+      <div class="card">
+        <table>
+          <tr><th>Параметр</th><th>Значение</th><th>Статус</th></tr>
+          <tr>
+            <td>Исходный URL</td>
+            <td><code>{{ report.source_url }}</code></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>Финальный URL</td>
+            <td><code>{{ report.page.final_url or "—" }}</code></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>HTTP status</td>
+            <td>{{ report.page.status_code if report.page.status_code is not none else "—" }}</td>
+            <td>
+              {% if report.page.error %}
+                <span class="badge status-error">ERROR</span>
+              {% elif report.page.status_code and report.page.status_code < 400 %}
+                <span class="badge status-ok">OK</span>
+              {% else %}
+                <span class="badge status-warning">WARNING</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td>Время ответа</td>
+            <td>{% if report.page.response_time_ms is not none %}{{ report.page.response_time_ms }} мс{% else %}—{% endif %}</td>
+            <td>—</td>
+          </tr>
+          {% if report.page.error %}
+          <tr>
+            <td>Ошибка</td>
+            <td colspan="2" class="err-item">{{ report.page.error }}</td>
+          </tr>
+          {% endif %}
+        </table>
+      </div>
+    </section>
+
+    <!-- SEO -->
+    <section>
+      <h2>SEO-база</h2>
+      <div class="card">
+        {% if report.seo %}
+        <table>
+          <tr><th>Параметр</th><th>Значение</th><th>Статус</th></tr>
+          <tr>
+            <td>Title</td>
+            <td>{{ report.seo.title or "—" }} ({{ report.seo.title_length }} симв.)</td>
+            <td>
+              {% if "title отсутствует" in report.seo.warnings or "title слишком" in report.seo.warnings|join(" ") %}
+                <span class="badge status-warning">WARNING</span>
+              {% else %}
+                <span class="badge status-ok">OK</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td>Meta description</td>
+            <td>{{ report.seo.meta_description or "—" }} ({{ report.seo.meta_description_length }} симв.)</td>
+            <td>
+              {% if "description" in report.seo.warnings|join(" ") %}
+                <span class="badge status-warning">WARNING</span>
+              {% else %}
+                <span class="badge status-ok">OK</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td>H1 ({{ report.seo.h1_count }})</td>
+            <td>
+              {% if report.seo.h1_list %}
+                <ul class="plain">
+                  {% for h in report.seo.h1_list %}
+                  <li>{{ h }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if "H1" in report.seo.warnings|join(" ") %}
+                <span class="badge status-warning">WARNING</span>
+              {% else %}
+                <span class="badge status-ok">OK</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td>Canonical</td>
+            <td><code>{{ report.seo.canonical_url or "—" }}</code></td>
+            <td>
+              {% if "canonical" in report.seo.warnings|join(" ") %}
+                <span class="badge status-warning">WARNING</span>
+              {% else %}
+                <span class="badge status-ok">OK</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td>Lang (html)</td>
+            <td>{{ report.seo.html_lang or "—" }}</td>
+            <td>—</td>
+          </tr>
+        </table>
+        {% else %}
+        <p class="empty">HTML недоступен — SEO-проверки не выполнены.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- robots & sitemap -->
+    <section>
+      <h2>robots.txt и sitemap.xml</h2>
+      <div class="card">
+        <table>
+          <tr><th>Ресурс</th><th>URL</th><th>HTTP</th><th>Статус</th></tr>
+          {% if report.robots %}
+          <tr>
+            <td>robots.txt</td>
+            <td><code>{{ report.robots.url }}</code></td>
+            <td>{{ report.robots.status_code if report.robots.status_code is not none else "—" }}</td>
+            <td>
+              {% if report.robots.exists %}
+                <span class="badge status-ok">OK</span>
+              {% else %}
+                <span class="badge status-warning">WARNING</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endif %}
+          {% if report.sitemap %}
+          <tr>
+            <td>sitemap.xml</td>
+            <td><code>{{ report.sitemap.url }}</code></td>
+            <td>{{ report.sitemap.status_code if report.sitemap.status_code is not none else "—" }}</td>
+            <td>
+              {% if report.sitemap.exists %}
+                <span class="badge status-ok">OK</span>
+              {% else %}
+                <span class="badge status-warning">WARNING</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endif %}
+        </table>
+      </div>
+    </section>
+
+    <!-- Формы -->
+    <section>
+      <h2>Формы</h2>
+      <div class="card">
+        {% if report.forms %}
+        <table>
+          <tr><th>#</th><th>Method</th><th>Action</th><th>Inputs</th><th>Submit</th><th>Статус</th></tr>
+          {% for form in report.forms %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ form.method or "—" }}</td>
+            <td><code>{{ form.action or "—" }}</code></td>
+            <td>{{ form.input_count }}</td>
+            <td>{{ "Да" if form.has_submit else "Нет" }}</td>
+            <td>
+              {% if form.warnings %}
+                <span class="badge status-warning">WARNING</span>
+              {% else %}
+                <span class="badge status-ok">OK</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </table>
+        {% else %}
+        <p class="empty">Формы на странице не найдены.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- Ссылки -->
+    <section>
+      <h2>Ссылки</h2>
+      <div class="card">
+        {% if report.links %}
+        <p style="margin-bottom: 1rem; color: var(--muted);">
+          Внутренних: {{ report.links.internal_links|length }},
+          внешних: {{ report.links.external_links|length }},
+          проверено: {{ report.links.checked_links|length }}
+        </p>
+        {% if report.links.checked_links %}
+        <table>
+          <tr><th>URL</th><th>HTTP</th><th>Время</th><th>Статус</th></tr>
+          {% for link in report.links.checked_links %}
+          <tr>
+            <td><code>{{ link.url }}</code></td>
+            <td>{{ link.status_code if link.status_code is not none else "—" }}</td>
+            <td>{% if link.response_time_ms is not none %}{{ link.response_time_ms }} мс{% else %}—{% endif %}</td>
+            <td>
+              {% if link.is_broken %}
+                <span class="badge status-error">ERROR</span>
+              {% else %}
+                <span class="badge status-ok">OK</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% if link.error %}
+          <tr>
+            <td colspan="4" class="err-item" style="font-size: 0.85rem;">{{ link.error }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </table>
+        {% else %}
+        <p class="empty">Внутренние ссылки для проверки не найдены.</p>
+        {% endif %}
+
+        {% if report.links.external_links %}
+        <h2 style="margin-top: 1.25rem; font-size: 1rem;">Внешние ссылки (без проверки)</h2>
+        <ul class="plain">
+          {% for ext in report.links.external_links[:20] %}
+          <li><code>{{ ext }}</code></li>
+          {% endfor %}
+          {% if report.links.external_links|length > 20 %}
+          <li class="empty">… и ещё {{ report.links.external_links|length - 20 }}</li>
+          {% endif %}
+        </ul>
+        {% endif %}
+        {% else %}
+        <p class="empty">Проверка ссылок не выполнена.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- Проблемы -->
+    <section>
+      <h2>Найденные проблемы</h2>
+      <div class="card">
+        {% if report.all_warnings %}
+        <ul class="plain">
+          {% for w in report.all_warnings %}
+          <li class="warn-item">{{ w }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty">Критичных предупреждений не обнаружено.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- Рекомендации -->
+    <section>
+      <h2>Рекомендации</h2>
+      <div class="card">
+        {% if report.recommendations %}
+        <ul class="plain rec-list">
+          {% for rec in report.recommendations %}
+          <li>{{ rec }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty">Дополнительных рекомендаций нет.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <footer>Weekly Site Report · MVP v1</footer>
+  </div>
+</body>
+</html>
