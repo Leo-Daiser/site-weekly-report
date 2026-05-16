@@ -51,12 +51,25 @@ def resolve_internal_url(base_url: str, href: str) -> str | None:
     return strip_fragment(absolute)
 
 
-def domain_to_filename(url: str) -> str:
+def report_base_filename(url: str, timestamp: str | None = None) -> str:
     netloc = urlparse(url).netloc or "unknown"
     safe = netloc.replace(".", "_").replace(":", "_")
-    now = datetime.now()
-    timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
-    return f"{safe}_{timestamp}.html"
+    ts = timestamp or datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    return f"{safe}_{ts}"
+
+
+def report_output_filenames(url: str, timestamp: str | None = None) -> tuple[str, str]:
+    """Пара (html_filename, pdf_filename) с одним timestamp."""
+    base = report_base_filename(url, timestamp)
+    return f"{base}.html", f"{base}.pdf"
+
+
+def domain_to_filename(url: str, timestamp: str | None = None) -> str:
+    return report_output_filenames(url, timestamp)[0]
+
+
+def report_pdf_filename(url: str, timestamp: str | None = None) -> str:
+    return report_output_filenames(url, timestamp)[1]
 
 
 def default_headers() -> dict[str, str]:

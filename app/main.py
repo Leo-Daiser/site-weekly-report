@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
+from app.branding import load_branding_config, resolve_branding
 from app.config import (
     DEFAULT_DB_PATH,
     DEFAULT_MAX_LINKS,
@@ -15,6 +18,7 @@ from app.config import (
 from app.diff import build_report_diff
 from app.link_checker import run_link_checks
 from app.models import SiteReport
+from app.pdf_exporter import PdfExportError, export_html_to_pdf
 from app.report_builder import (
     build_recommendations,
     collect_all_warnings,
@@ -23,9 +27,11 @@ from app.report_builder import (
 from app.scanner import check_robots_and_sitemap, fetch_page
 from app.seo_checks import check_forms, run_seo_checks
 from app.storage import get_latest_check, save_check
-from app.utils import domain_to_filename, normalize_domain, normalize_url
+from app.utils import normalize_domain, normalize_url, report_output_filenames
 
 console = Console()
+
+FormatChoice = Literal["html", "pdf", "both"]
 
 
 def _resolve_path(path_str: str, project_root: Path) -> Path:
@@ -33,6 +39,11 @@ def _resolve_path(path_str: str, project_root: Path) -> Path:
     if not path.is_absolute():
         path = project_root / path
     return path
+
+
+def _print_warnings(warnings: list[str]) -> None:
+    for message in warnings:
+        console.print(f"[yellow]Warning:[/yellow] {message}")
 
 
 def main(
@@ -49,6 +60,17 @@ def main(
     db_path: str = typer.Option(
         DEFAULT_DB_PATH, "--db-path", help="Путь к SQLite-базе истории проверок"
     ),
+    brand_name: str | None = typer.Option(None, "--brand-name", help="Название бренда"),
+    client_name: str | None = typer.Option(None, "--client-name", help="Имя клиента"),
+    brand_color: str | None = typer.Option(None, "--brand-color", help="Цвет бренда (#RRGGBB)"),
+    brand_logo: str | None = typer.Option(None, "--brand-logo", help="Путь к логотипу"),
+    footer_text: str | None = typer.Option(None, "--footer-text", help="Текст в подвале"),
+    branding_file: str | None = typer.Option(
+        None, "--branding-file", help="JSON-файл с настройками брендинга"
+    ),
+    report_format: FormatChoice = typer.Option(
+        "html", "--format", help="Формат отчёта: html, pdf, both"
+    ),
 ) -> None:
     """Сканирует главную страницу и генерирует HTML-отчёт."""
     try:
@@ -57,7 +79,32 @@ def main(
         console.print(f"[red]Ошибка:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
+    output_format = report_format.lower()
+    if output_format not in ("html", "pdf", "both"):
+        console.print("[red]Ошибка:[/red] --format должен быть html, pdf или both")
+        raise typer.Exit(code=1)
+
     project_root = Path(__file__).resolve().parent.parent
+
+    try:
+        if branding_file:
+            branding_path = _resolve_path(branding_file, project_root)
+            file_config = load_branding_config(str(branding_path))
+        else:
+            file_config = load_branding_config(None)
+    except FileNotFoundError as exc:
+        console.print(f"[red]Ошибка:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    cli_overrides: dict[str, object] = {
+        "brand_name": brand_name,
+        "client_name": client_name,
+        "brand_color": brand_color,
+        "logo_path": brand_logo,
+        "footer_text": footer_text,
+    }
+    branding, branding_warnings = resolve_branding(file_config, cli_overrides, project_root)
+    _print_warnings(branding_warnings)
 
     console.print("\n[bold]Weekly Site Report[/bold]")
     console.print(f"Сканирование: [cyan]{source_url}[/cyan]\n")
@@ -98,11 +145,27 @@ def main(
 
     template_dir = project_root / "templates"
     out_dir = _resolve_path(output_dir, project_root)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    filename = domain_to_filename(page.final_url or source_url)
-    output_path = out_dir / filename
-    render_report(report, template_dir, output_path)
-    report.report_path = str(output_path)
+    report_url = page.final_url or source_url
+    run_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    html_filename, pdf_filename = report_output_filenames(report_url, run_timestamp)
+    html_path = out_dir / html_filename
+
+    render_report(report, template_dir, html_path, branding)
+    report.report_path = str(html_path)
+
+    pdf_path: Path | None = None
+    if output_format in ("pdf", "both"):
+        pdf_path = out_dir / pdf_filename
+        try:
+            export_html_to_pdf(html_path, pdf_path)
+            report.pdf_path = str(pdf_path)
+        except PdfExportError as exc:
+            for line in str(exc).splitlines():
+                console.print(f"[red]{line}[/red]", soft_wrap=False)
+            if output_format == "pdf":
+                raise typer.Exit(code=1) from exc
 
     broken = links.broken_count if links else 0
     warning_count = len(report.all_warnings)
@@ -120,8 +183,14 @@ def main(
     table.add_row("Broken links", str(broken))
     table.add_row("Previous check", previous_label)
     table.add_row("Changes", str(change_count))
+    table.add_row("Brand", branding.brand_name)
+    if branding.client_name:
+        table.add_row("Client", branding.client_name)
+    if output_format in ("html", "both", "pdf"):
+        table.add_row("HTML report", str(html_path))
+    if pdf_path and report.pdf_path:
+        table.add_row("PDF report", str(pdf_path))
     table.add_row("Database", str(sqlite_path))
-    table.add_row("Отчёт", str(output_path))
     console.print(table)
     console.print()
 

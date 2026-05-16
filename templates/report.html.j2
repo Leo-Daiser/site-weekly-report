@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Отчёт — {{ report.source_url }}</title>
+  <title>{{ branding.brand_name }} — {{ report.source_url }}</title>
   <style>
     :root {
+      --brand: {{ branding.brand_color }};
       --bg: #f4f6f9;
       --card: #ffffff;
       --text: #1a1d26;
@@ -17,7 +18,7 @@
       --warn-bg: #fff8e6;
       --err: #b42318;
       --err-bg: #fdecea;
-      --accent: #2563eb;
+      --accent: {{ branding.brand_color }};
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -28,19 +29,53 @@
       padding: 2rem 1rem;
     }
     .container { max-width: 960px; margin: 0 auto; }
-    header {
+    .brand-header {
       margin-bottom: 2rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 2px solid var(--border);
+      padding: 1.25rem 1.5rem 1.5rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      border-top: 5px solid var(--brand);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    header h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
-    header .meta { color: var(--muted); font-size: 0.9rem; }
-    header .meta a { color: var(--accent); word-break: break-all; }
+    .brand-header-top {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .brand-logo {
+      max-height: 48px;
+      max-width: 160px;
+      object-fit: contain;
+    }
+    .brand-header h1 {
+      font-size: 1.75rem;
+      margin: 0;
+      color: var(--brand);
+    }
+    .brand-subtitle {
+      font-size: 1.05rem;
+      color: var(--text);
+      margin: 0.35rem 0 0.75rem;
+      font-weight: 500;
+    }
+    .brand-meta {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .brand-meta a { color: var(--accent); word-break: break-all; }
     section { margin-bottom: 1.5rem; }
     h2 {
       font-size: 1.15rem;
       margin-bottom: 0.75rem;
-      color: var(--text);
+      color: var(--brand);
+      padding-bottom: 0.35rem;
+      border-bottom: 2px solid color-mix(in srgb, var(--brand) 25%, transparent);
+    }
+    @supports not (color: color-mix(in srgb, red, blue)) {
+      h2 { border-bottom-color: var(--border); }
     }
     .card {
       background: var(--card);
@@ -117,16 +152,43 @@
     .diff-warning { border-left-color: var(--warn); background: var(--warn-bg); }
     .diff-critical { border-left-color: var(--err); background: var(--err-bg); }
     .diff-meta { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.75rem; }
-    footer { margin-top: 2rem; text-align: center; color: var(--muted); font-size: 0.8rem; }
+    footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 2px solid var(--brand);
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    .powered-by { margin-top: 0.35rem; font-size: 0.75rem; opacity: 0.85; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .container { max-width: 100%; }
+      .brand-header, .card {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+      section { break-inside: avoid-page; }
+      a { color: var(--text); text-decoration: none; }
+      .brand-header { border-top-width: 3px; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1>Weekly Site Report</h1>
-      <p class="meta">
-        Сайт: <a href="{{ report.source_url }}" target="_blank" rel="noopener">{{ report.source_url }}</a><br>
-        Дата сканирования: {{ report.scanned_at.strftime("%d.%m.%Y %H:%M:%S") }}
+    <header class="brand-header">
+      <div class="brand-header-top">
+        {% if logo_data_uri %}
+        <img src="{{ logo_data_uri }}" alt="{{ branding.brand_name }} logo" class="brand-logo">
+        {% endif %}
+        <h1>{{ branding.brand_name }}</h1>
+      </div>
+      {% if branding.client_name %}
+      <p class="brand-subtitle">Weekly Site Report for {{ branding.client_name }}</p>
+      {% endif %}
+      <p class="brand-meta">
+        Site: <a href="{{ report.source_url }}" target="_blank" rel="noopener">{{ report.source_url }}</a><br>
+        Generated: {{ report.scanned_at.strftime("%Y-%m-%d %H:%M") }}
       </p>
     </header>
 
@@ -476,7 +538,12 @@
       </div>
     </section>
 
-    <footer>Weekly Site Report · MVP v1</footer>
+    <footer>
+      {% if branding.footer_text %}{{ branding.footer_text }}{% endif %}
+      {% if branding.show_powered_by %}
+      <div class="powered-by">Powered by WebReport Weekly</div>
+      {% endif %}
+    </footer>
   </div>
 </body>
 </html>

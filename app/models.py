@@ -105,6 +105,18 @@ class StoredCheck(BaseModel):
     raw_json: str | None = None
 
 
+class BrandingConfig(BaseModel):
+    brand_name: str = "WebReport Weekly"
+    client_name: str | None = None
+    brand_color: str = "#2563eb"
+    logo_path: str | None = None
+    footer_text: str | None = "Prepared by WebReport Weekly"
+    show_powered_by: bool = True
+
+
+ReportFormat = Literal["html", "pdf", "both"]
+
+
 class SiteReport(BaseModel):
     scanned_at: datetime = Field(default_factory=datetime.now)
     source_url: str
@@ -117,4 +129,5 @@ class SiteReport(BaseModel):
     all_warnings: list[str] = Field(default_factory=list)
     recommendations: list[str] = Field(default_factory=list)
     report_path: str | None = None
+    pdf_path: str | None = None
     diff: ReportDiff | None = None

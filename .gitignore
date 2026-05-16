@@ -6,6 +6,7 @@ __pycache__/
 venv/
 
 reports/*.html
+reports/*.pdf
 !reports/.gitkeep
 
 data/*.sqlite

@@ -27,6 +27,13 @@ python -m app.main --url https://example.com
 | `--timeout`    | 10           | Таймаут HTTP-запросов (сек)           |
 | `--output-dir` | `reports`    | Папка для сохранения HTML-отчёта      |
 | `--db-path`    | `data/checks.sqlite` | SQLite-база истории проверок |
+| `--brand-name` | —            | Название бренда в отчёте              |
+| `--client-name`| —            | Имя клиента (white-label)             |
+| `--brand-color`| `#2563eb`    | Акцентный цвет (#RRGGBB)              |
+| `--brand-logo` | —            | Путь к логотипу (png/jpg/svg)         |
+| `--footer-text`| —            | Текст в подвале отчёта                |
+| `--branding-file` | —         | JSON с настройками брендинга          |
+| `--format`     | `html`       | `html`, `pdf` или `both`              |
 
 Пример с параметрами:
 
@@ -35,6 +42,67 @@ python -m app.main --url https://example.com --max-links 20 --timeout 15 --outpu
 ```
 
 Отчёт сохраняется как `reports/example_com_2026-05-16_14-30-00.html`.
+
+## White-label reports
+
+Отчёт можно оформить под своё агентство: название бренда, клиент, цвет, логотип и текст в подвале. Настройки задаются через CLI или JSON-файл (`--branding-file`). CLI-параметры имеют приоритет над файлом.
+
+Пример:
+
+```bash
+python -m app.main --url https://example.com \
+  --brand-name "SEO Studio" \
+  --client-name "Client Company" \
+  --brand-color "#2563eb" \
+  --format html
+```
+
+### Branding JSON
+
+Пример `branding/default.json`:
+
+```json
+{
+  "brand_name": "WebReport Weekly",
+  "client_name": null,
+  "brand_color": "#2563eb",
+  "logo_path": null,
+  "footer_text": "Prepared by WebReport Weekly",
+  "show_powered_by": true
+}
+```
+
+Запуск с файлом:
+
+```bash
+python -m app.main --url https://example.com --branding-file branding/default.json --format both
+```
+
+Логотип встраивается в HTML как base64 (self-contained). Если файл логотипа не найден, выводится предупреждение, отчёт создаётся без логотипа.
+
+## PDF export
+
+Для PDF нужен Playwright и Chromium:
+
+```bash
+pip install -r requirements.txt
+python -m playwright install chromium
+```
+
+Пример HTML + PDF:
+
+```bash
+python -m app.main --url https://example.com \
+  --brand-name "SEO Studio" \
+  --client-name "Client Company" \
+  --format both
+```
+
+Файлы сохраняются рядом: `reports/example_com_YYYY-MM-DD_HH-MM-SS.html` и `.pdf`.
+
+- `--format html` — только HTML (по умолчанию)
+- `--format pdf` — HTML (для рендера) + PDF; при ошибке PDF процесс завершается с ошибкой
+- `--format both` — оба файла; при ошибке PDF HTML всё равно сохраняется
 
 ## История проверок
 
@@ -71,10 +139,15 @@ python -m app.main --url https://example.com --db-path data/my_checks.sqlite
 - Внутренние и внешние ссылки; проверка первых N внутренних на HTTP-ошибки
 - HTML-отчёт с предупреждениями и рекомендациями
 
-## Фаза 2 (текущая)
+## Фаза 2
 
 - SQLite-история проверок по домену
 - Сравнение с предыдущей проверкой и блок изменений в отчёте
+
+## Фаза 3 (текущая)
+
+- White-label: бренд, клиент, цвет, логотип, footer
+- Экспорт PDF через Playwright (A4)
 
 ## Следующие фазы (план)
 
@@ -93,7 +166,7 @@ python -m unittest discover -s tests -v
 
 В репозиторий не попадают локальные артефакты и окружение (см. `.gitignore`):
 
-- `reports/*.html` — сгенерированные HTML-отчёты после каждого запуска CLI; это результат работы инструмента на вашей машине, а не исходный код. В git остаётся только `reports/.gitkeep`, чтобы папка существовала в проекте.
+- `reports/*.html`, `reports/*.pdf` — сгенерированные отчёты после каждого запуска CLI; это результат работы инструмента на вашей машине, а не исходный код. В git остаётся только `reports/.gitkeep`, чтобы папка существовала в проекте.
 - `data/*.sqlite` — локальная история проверок
 - `__pycache__/`, `*.pyc` — кэш Python
 - `.venv/`, `venv/`, `.env` — виртуальное окружение и секреты
@@ -104,10 +177,12 @@ python -m unittest discover -s tests -v
 
 ```
 weekly-site-report/
-  app/           # код CLI (storage, diff)
+  app/           # код CLI (storage, diff, branding, pdf)
+  branding/      # пример JSON брендинга
+  assets/        # логотипы и статика
   data/          # SQLite по умолчанию (не коммитится)
   templates/     # Jinja2-шаблон отчёта
-  reports/       # локальные HTML-отчёты (не коммитятся)
+  reports/       # локальные HTML/PDF (не коммитятся)
   tests/         # unit-тесты
   requirements.txt
   README.md
