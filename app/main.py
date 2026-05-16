@@ -6,7 +6,13 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from app.config import DEFAULT_MAX_LINKS, DEFAULT_OUTPUT_DIR, DEFAULT_TIMEOUT
+from app.config import (
+    DEFAULT_DB_PATH,
+    DEFAULT_MAX_LINKS,
+    DEFAULT_OUTPUT_DIR,
+    DEFAULT_TIMEOUT,
+)
+from app.diff import build_report_diff
 from app.link_checker import run_link_checks
 from app.models import SiteReport
 from app.report_builder import (
@@ -16,9 +22,17 @@ from app.report_builder import (
 )
 from app.scanner import check_robots_and_sitemap, fetch_page
 from app.seo_checks import check_forms, run_seo_checks
-from app.utils import domain_to_filename, normalize_url
+from app.storage import get_latest_check, save_check
+from app.utils import domain_to_filename, normalize_domain, normalize_url
 
 console = Console()
+
+
+def _resolve_path(path_str: str, project_root: Path) -> Path:
+    path = Path(path_str)
+    if not path.is_absolute():
+        path = project_root / path
+    return path
 
 
 def main(
@@ -32,6 +46,9 @@ def main(
     output_dir: str = typer.Option(
         DEFAULT_OUTPUT_DIR, "--output-dir", help="Папка для HTML-отчёта"
     ),
+    db_path: str = typer.Option(
+        DEFAULT_DB_PATH, "--db-path", help="Путь к SQLite-базе истории проверок"
+    ),
 ) -> None:
     """Сканирует главную страницу и генерирует HTML-отчёт."""
     try:
@@ -39,6 +56,8 @@ def main(
     except ValueError as exc:
         console.print(f"[red]Ошибка:[/red] {exc}")
         raise typer.Exit(code=1) from exc
+
+    project_root = Path(__file__).resolve().parent.parent
 
     console.print("\n[bold]Weekly Site Report[/bold]")
     console.print(f"Сканирование: [cyan]{source_url}[/cyan]\n")
@@ -70,11 +89,15 @@ def main(
     report.all_warnings = collect_all_warnings(report)
     report.recommendations = build_recommendations(report)
 
-    project_root = Path(__file__).resolve().parent.parent
+    normalized = normalize_domain(page.final_url or source_url)
+    sqlite_path = _resolve_path(db_path, project_root)
+
+    previous = get_latest_check(sqlite_path, normalized)
+    report.diff = build_report_diff(previous, report)
+    save_check(sqlite_path, report, normalized)
+
     template_dir = project_root / "templates"
-    out_dir = Path(output_dir)
-    if not out_dir.is_absolute():
-        out_dir = project_root / out_dir
+    out_dir = _resolve_path(output_dir, project_root)
 
     filename = domain_to_filename(page.final_url or source_url)
     output_path = out_dir / filename
@@ -83,6 +106,9 @@ def main(
 
     broken = links.broken_count if links else 0
     warning_count = len(report.all_warnings)
+    diff = report.diff
+    change_count = diff.change_count if diff else 0
+    previous_label = "found" if diff and diff.has_previous else "not found"
 
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_row("URL", page.final_url or source_url)
@@ -92,6 +118,9 @@ def main(
     )
     table.add_row("Warnings", str(warning_count))
     table.add_row("Broken links", str(broken))
+    table.add_row("Previous check", previous_label)
+    table.add_row("Changes", str(change_count))
+    table.add_row("Database", str(sqlite_path))
     table.add_row("Отчёт", str(output_path))
     console.print(table)
     console.print()

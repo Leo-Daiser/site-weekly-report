@@ -26,6 +26,7 @@ python -m app.main --url https://example.com
 | `--max-links`  | 30           | Сколько внутренних ссылок проверить   |
 | `--timeout`    | 10           | Таймаут HTTP-запросов (сек)           |
 | `--output-dir` | `reports`    | Папка для сохранения HTML-отчёта      |
+| `--db-path`    | `data/checks.sqlite` | SQLite-база истории проверок |
 
 Пример с параметрами:
 
@@ -34,6 +35,32 @@ python -m app.main --url https://example.com --max-links 20 --timeout 15 --outpu
 ```
 
 Отчёт сохраняется как `reports/example_com_2026-05-16_14-30-00.html`.
+
+## История проверок
+
+Каждый запуск сохраняет снимок проверки в локальную SQLite-базу (по умолчанию `data/checks.sqlite`). Перед сохранением текущей записи программа ищет последнюю проверку того же домена и строит diff.
+
+**Нормализация домена:** `https://www.example.com/page` → `example.com`; `https://sub.example.com` → `sub.example.com` (префикс `www.` убирается, поддомены сохраняются).
+
+Запуск с базой по умолчанию:
+
+```bash
+python -m app.main --url https://example.com
+```
+
+Свой путь к базе:
+
+```bash
+python -m app.main --url https://example.com --db-path data/my_checks.sqlite
+```
+
+В HTML-отчёте блок **«Что изменилось с прошлой проверки»** показывает:
+
+- сообщение о первой проверке, если истории ещё нет;
+- список изменений с severity (`positive`, `neutral`, `warning`, `critical`);
+- текст об отсутствии существенных изменений, если метрики совпали.
+
+База и отчёты остаются на вашей машине (см. `.gitignore`: `data/*.sqlite` не коммитятся).
 
 ## Что проверяет первая версия (MVP)
 
@@ -44,11 +71,15 @@ python -m app.main --url https://example.com --max-links 20 --timeout 15 --outpu
 - Внутренние и внешние ссылки; проверка первых N внутренних на HTTP-ошибки
 - HTML-отчёт с предупреждениями и рекомендациями
 
+## Фаза 2 (текущая)
+
+- SQLite-история проверок по домену
+- Сравнение с предыдущей проверкой и блок изменений в отчёте
+
 ## Следующие фазы (план)
 
 - Планировщик еженедельных отчётов
 - Мульти-страничный краул
-- Сравнение отчётов во времени
 - Web-интерфейс и учётные записи (SaaS)
 - Интеграции (Search Console, аналитика)
 
@@ -63,6 +94,7 @@ python -m unittest discover -s tests -v
 В репозиторий не попадают локальные артефакты и окружение (см. `.gitignore`):
 
 - `reports/*.html` — сгенерированные HTML-отчёты после каждого запуска CLI; это результат работы инструмента на вашей машине, а не исходный код. В git остаётся только `reports/.gitkeep`, чтобы папка существовала в проекте.
+- `data/*.sqlite` — локальная история проверок
 - `__pycache__/`, `*.pyc` — кэш Python
 - `.venv/`, `venv/`, `.env` — виртуальное окружение и секреты
 
@@ -72,10 +104,11 @@ python -m unittest discover -s tests -v
 
 ```
 weekly-site-report/
-  app/           # код CLI
+  app/           # код CLI (storage, diff)
+  data/          # SQLite по умолчанию (не коммитится)
   templates/     # Jinja2-шаблон отчёта
   reports/       # локальные HTML-отчёты (не коммитятся)
-  tests/         # минимальные unit-тесты
+  tests/         # unit-тесты
   requirements.txt
   README.md
 ```

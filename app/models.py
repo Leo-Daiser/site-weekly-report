@@ -59,6 +59,52 @@ class LinkCheckResult(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+DiffSeverity = Literal["positive", "neutral", "warning", "critical"]
+
+
+class DiffChange(BaseModel):
+    message: str
+    severity: DiffSeverity
+
+
+class ReportDiff(BaseModel):
+    has_previous: bool = False
+    previous_created_at: str | None = None
+    changes: list[DiffChange] = Field(default_factory=list)
+    first_check_message: str | None = None
+    no_changes_message: str | None = None
+
+    @property
+    def change_count(self) -> int:
+        return len(self.changes)
+
+
+class StoredCheck(BaseModel):
+    id: int
+    created_at: str
+    input_url: str
+    final_url: str | None = None
+    normalized_domain: str
+    status_code: int | None = None
+    response_time_ms: float | None = None
+    title: str | None = None
+    title_length: int | None = None
+    description: str | None = None
+    description_length: int | None = None
+    h1_count: int | None = None
+    canonical_url: str | None = None
+    robots_exists: int = 0
+    robots_status_code: int | None = None
+    sitemap_exists: int = 0
+    sitemap_status_code: int | None = None
+    forms_count: int = 0
+    broken_links_count: int = 0
+    internal_links_count: int = 0
+    external_links_count: int = 0
+    warnings_count: int = 0
+    raw_json: str | None = None
+
+
 class SiteReport(BaseModel):
     scanned_at: datetime = Field(default_factory=datetime.now)
     source_url: str
@@ -71,3 +117,4 @@ class SiteReport(BaseModel):
     all_warnings: list[str] = Field(default_factory=list)
     recommendations: list[str] = Field(default_factory=list)
     report_path: str | None = None
+    diff: ReportDiff | None = None

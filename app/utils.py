@@ -16,6 +16,15 @@ def normalize_url(url: str) -> str:
     return url
 
 
+def normalize_domain(url: str) -> str:
+    """example.com из https://www.example.com/page; sub.example.com сохраняется."""
+    parsed = urlparse(url if "://" in url else f"https://{url}")
+    host = (parsed.hostname or parsed.netloc or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    return host or "unknown"
+
+
 def get_base_domain(url: str) -> str:
     parsed = urlparse(url)
     return f"{parsed.scheme}://{parsed.netloc}"

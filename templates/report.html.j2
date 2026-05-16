@@ -104,6 +104,19 @@
     }
     .empty { color: var(--muted); font-style: italic; }
     code { font-size: 0.85em; background: var(--bg); padding: 0.1rem 0.35rem; border-radius: 3px; word-break: break-all; }
+    .diff-list li {
+      padding: 0.55rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      border-left: 4px solid var(--border);
+      margin-bottom: 0.35rem;
+      border-radius: 0 6px 6px 0;
+    }
+    .diff-list li:last-child { border-bottom: 1px solid var(--border); margin-bottom: 0; }
+    .diff-positive { border-left-color: var(--ok); background: var(--ok-bg); }
+    .diff-neutral { border-left-color: var(--muted); }
+    .diff-warning { border-left-color: var(--warn); background: var(--warn-bg); }
+    .diff-critical { border-left-color: var(--err); background: var(--err-bg); }
+    .diff-meta { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.75rem; }
     footer { margin-top: 2rem; text-align: center; color: var(--muted); font-size: 0.8rem; }
   </style>
 </head>
@@ -155,6 +168,42 @@
             </div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- Изменения с прошлой проверки -->
+    <section>
+      <h2>Что изменилось с прошлой проверки</h2>
+      <div class="card">
+        {% if report.diff %}
+          {% if not report.diff.has_previous %}
+            <p class="empty">{{ report.diff.first_check_message }}</p>
+          {% elif report.diff.changes %}
+            {% if report.diff.previous_created_at %}
+            <p class="diff-meta">Сравнение с проверкой от {{ report.diff.previous_created_at }}</p>
+            {% endif %}
+            <ul class="plain diff-list">
+              {% for change in report.diff.changes %}
+              <li class="diff-{{ change.severity }}">
+                {% if change.severity == 'positive' %}
+                <span class="badge status-ok">positive</span>
+                {% elif change.severity == 'critical' %}
+                <span class="badge status-error">critical</span>
+                {% elif change.severity == 'warning' %}
+                <span class="badge status-warning">warning</span>
+                {% else %}
+                <span class="badge status-warning">neutral</span>
+                {% endif %}
+                {{ change.message }}
+              </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="empty">{{ report.diff.no_changes_message }}</p>
+          {% endif %}
+        {% else %}
+          <p class="empty">Предыдущая проверка не найдена. Это базовый отчёт.</p>
+        {% endif %}
       </div>
     </section>
 
