@@ -316,6 +316,62 @@ python -m app.weekly --job-file data/weekly_jobs.example.json --mode outbox
 
 Для реальной отправки замените `outbox` на `send` и настройте SMTP (`.env` или флаги `--smtp-*`).
 
+## Site Health Score (Фаза 8)
+
+В отчёте появляется блок **Executive summary** с **Site Health Score** (0–100), меткой состояния и **Top 3 actions**. Scoring **deterministic и rule-based** — без LLM и внешних API. Это не полноценный SEO-аудит, а сводка по проверкам MVP.
+
+| Score | Label |
+|-------|--------|
+| 90–100 | Excellent |
+| 75–89 | Good |
+| 60–74 | Needs attention |
+| 40–59 | Poor |
+| 0–39 | Critical |
+
+Учитываются категории: availability, SEO, technical (robots/sitemap), forms, links, performance, changes (diff с прошлой проверкой).
+
+```bash
+python -m app.main --url https://example.com --format html
+```
+
+В HTML-отчёте: score, label, top actions, issues by severity. Те же поля есть в batch `summary.csv`, email preview и `client.json` при onboard.
+
+## Client onboarding and sample reports (Фаза 7)
+
+`app.onboard` помогает быстро подготовить **первый sample-report** для лида и собрать deliverable-папку для ручной отправки. **Email не отправляется автоматически.**
+
+### Запуск
+
+```bash
+python -m app.onboard --client-name "Demo Client" --client-email demo@example.com --url https://example.com --brand-name "SEO Studio" --format html
+
+python -m app.onboard --client-name "Demo Client" --client-email demo@example.com --url https://example.com --brand-name "SEO Studio" --format both
+
+python -m app.onboard --client-name "Demo Client" --client-email demo@example.com --url https://example.com --add-to-clients-csv
+```
+
+По умолчанию: `--format html`, `--max-links 30`, `--output-dir reports`, `--leads-dir leads`, `--add-to-clients-csv` выключен.
+
+### Папка лида
+
+`leads/<slug>/` (например `leads/demo-client-example-com/`):
+
+| Файл | Описание |
+|------|----------|
+| `client.json` | Метаданные лида и сводка проверки |
+| `sample_report.html` | Копия HTML-отчёта |
+| `sample_report.pdf` | Копия PDF (если `--format pdf` или `both`) |
+| `email_preview.txt` / `email_preview.html` | Черновик письма (шаблоны `email_report.*.j2`) |
+| `notes.md` | Сводка + suggested outreach + next steps |
+
+Оригинал отчёта остаётся в `reports/`.
+
+### Добавление в clients.csv
+
+`--add-to-clients-csv` добавляет строку в `data/clients.csv` (создаёт файл с header, если его нет). Дубликат по URL не добавляется — выводится `already exists`.
+
+Пример CSV лидов (справочно): `data/leads.example.csv`.
+
 ## Следующие фазы (план)
 
 - Планировщик еженедельных отчётов
@@ -337,6 +393,7 @@ python -m unittest discover -s tests -v
 - `data/*.sqlite` — локальная история проверок
 - `outbox/*` (кроме `outbox/.gitkeep`) — подготовленные письма
 - `run_logs/*` (кроме `run_logs/.gitkeep`) — JSON-логи weekly-запусков
+- `leads/*` (кроме `leads/.gitkeep`) — deliverable-папки лидов
 - `__pycache__/`, `*.pyc` — кэш Python
 - `.venv/`, `venv/`, `.env` — виртуальное окружение и секреты
 
@@ -346,7 +403,8 @@ python -m unittest discover -s tests -v
 
 ```
 weekly-site-report/
-  app/           # main, batch, weekly, send_reports, pipeline, outbox, email_sender
+  app/           # main, batch, weekly, onboard, send_reports, pipeline, outbox
+  leads/         # deliverable-папки лидов (не коммитится)
   run_logs/      # JSON-логи weekly (не коммитится)
   outbox/        # черновики писем (не коммитится)
   data/          # clients.example.csv, SQLite (не коммитится)

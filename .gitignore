@@ -10,6 +10,7 @@ reports/*
 
 data/*.sqlite
 data/*.db
+data/clients.local.csv
 !data/.gitkeep
 
 outbox/*
@@ -17,3 +18,6 @@ outbox/*
 
 run_logs/*
 !run_logs/.gitkeep
+
+leads/**
+!leads/.gitkeep

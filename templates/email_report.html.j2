@@ -9,6 +9,9 @@
     table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
     th, td { text-align: left; padding: 0.5rem 0.65rem; border-bottom: 1px solid #e2e6ef; }
     th { background: #f4f6f9; color: #5c6370; font-size: 0.8rem; text-transform: uppercase; }
+    .health-box { background: #f4f6f9; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+    .health-score { font-size: 1.25rem; font-weight: 700; }
+    ol.actions { margin: 0.5rem 0 0 1.25rem; padding: 0; }
     .footer { margin-top: 1.5rem; color: #5c6370; font-size: 0.9rem; }
   </style>
 </head>
@@ -16,6 +19,20 @@
   <div class="wrap">
     <p>Здравствуйте.</p>
     <p>Подготовлен еженедельный отчёт по сайту: <strong>{{ url }}</strong></p>
+    {% if health_score is not none %}
+    <div class="health-box">
+      <p class="health-score">Site Health Score: {{ health_score }}/100</p>
+      <p>Status: <strong>{{ health_label }}</strong></p>
+      {% if top_actions %}
+      <p><strong>Top actions:</strong></p>
+      <ol class="actions">
+        {% for action in top_actions %}
+        <li>{{ action }}</li>
+        {% endfor %}
+      </ol>
+      {% endif %}
+    </div>
+    {% endif %}
     <table>
       <tr><th>Показатель</th><th>Значение</th></tr>
       <tr><td>HTTP status</td><td>{{ status_code }}</td></tr>

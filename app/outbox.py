@@ -72,7 +72,7 @@ def _email_slug(normalized_domain: str, client_name: str, index: int) -> str:
     return safe
 
 
-def _render_email_bodies(
+def render_email_bodies(
     template_dir: Path,
     context: dict[str, object],
 ) -> tuple[str, str]:
@@ -187,6 +187,12 @@ def create_outbox_for_batch(
                 continue
 
             status_code = _parse_int(row.get("status_code"))
+            health_score_raw = _empty(row.get("health_score"))
+            health_score_val = _parse_int(health_score_raw)
+            top_actions_raw = _empty(row.get("top_actions")) or ""
+            top_actions_list = [
+                part.strip() for part in top_actions_raw.split("|") if part.strip()
+            ]
             context: dict[str, object] = {
                 "url": url,
                 "status_code": status_code if status_code is not None else "—",
@@ -195,8 +201,11 @@ def create_outbox_for_batch(
                 "changes_count": _parse_int(row.get("changes_count")) or 0,
                 "brand_name": brand_name,
                 "client_name": client_name,
+                "health_score": health_score_val,
+                "health_label": _empty(row.get("health_label")) or "",
+                "top_actions": top_actions_list,
             }
-            text_body, html_body = _render_email_bodies(template_dir, context)
+            text_body, html_body = render_email_bodies(template_dir, context)
 
             slug = _email_slug(normalized, client_name, index)
             text_rel = f"emails/{slug}.txt"

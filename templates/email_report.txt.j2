@@ -2,6 +2,17 @@
 
 Подготовлен еженедельный отчёт по сайту: {{ url }}
 
+{% if health_score is not none %}
+Site Health Score: {{ health_score }}/100
+Status: {{ health_label }}
+{% if top_actions %}
+Top actions:
+{% for action in top_actions %}
+{{ loop.index }}. {{ action }}
+{% endfor %}
+{% endif %}
+
+{% endif %}
 Краткая сводка:
 - HTTP status: {{ status_code }}
 - Предупреждений: {{ warnings_count }}

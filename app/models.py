@@ -62,6 +62,17 @@ class LinkCheckResult(BaseModel):
 
 DiffSeverity = Literal["positive", "neutral", "warning", "critical"]
 
+IssueSeverity = Literal["info", "low", "medium", "high", "critical"]
+IssueCategory = Literal[
+    "availability",
+    "seo",
+    "technical",
+    "forms",
+    "links",
+    "performance",
+    "changes",
+]
+
 
 class DiffChange(BaseModel):
     message: str
@@ -217,6 +228,75 @@ class WeeklyRunLog(BaseModel):
     error: str | None = None
 
 
+class ReportIssue(BaseModel):
+    code: str
+    title: str
+    description: str
+    severity: IssueSeverity
+    category: IssueCategory
+    recommendation: str
+    weight: int = 0
+
+
+class PrioritizedAction(BaseModel):
+    title: str
+    reason: str
+    severity: IssueSeverity
+    category: IssueCategory
+    estimated_impact: str
+
+
+class HealthScore(BaseModel):
+    score: int
+    label: str
+    issues_total: int = 0
+    critical_count: int = 0
+    high_count: int = 0
+    medium_count: int = 0
+    low_count: int = 0
+    top_actions: list[PrioritizedAction] = Field(default_factory=list)
+
+
+class LeadClientRecord(BaseModel):
+    client_name: str
+    client_email: str | None = None
+    url: str
+    normalized_domain: str
+    brand_name: str
+    brand_color: str = "#2563eb"
+    format: str = "html"
+    created_at: str
+    report_html_path: str = "sample_report.html"
+    report_pdf_path: str | None = None
+    warnings_count: int = 0
+    broken_links_count: int = 0
+    changes_count: int = 0
+    previous_check_found: bool = False
+    status_code: int | None = None
+    health_score: int | None = None
+    health_label: str | None = None
+    critical_issues: int = 0
+    high_issues: int = 0
+    medium_issues: int = 0
+    low_issues: int = 0
+    top_actions: list[str] = Field(default_factory=list)
+
+
+class OnboardResult(BaseModel):
+    lead_dir: Path
+    client_json_path: Path
+    sample_report_html: Path | None = None
+    sample_report_pdf: Path | None = None
+    email_preview_txt: Path
+    email_preview_html: Path
+    notes_path: Path
+    report_result: ReportRunResult
+    warnings: list[str] = Field(default_factory=list)
+    clients_csv_status: str | None = None
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
 class ReportRunResult(BaseModel):
     url: str
     normalized_domain: str | None = None
@@ -233,6 +313,13 @@ class ReportRunResult(BaseModel):
     brand_name: str | None = None
     client_name: str | None = None
     branding_warnings: list[str] = Field(default_factory=list)
+    health_score: int | None = None
+    health_label: str | None = None
+    critical_issues: int = 0
+    high_issues: int = 0
+    medium_issues: int = 0
+    low_issues: int = 0
+    top_actions: str = ""
 
 
 class SiteReport(BaseModel):
@@ -249,3 +336,5 @@ class SiteReport(BaseModel):
     report_path: str | None = None
     pdf_path: str | None = None
     diff: ReportDiff | None = None
+    issues: list[ReportIssue] = Field(default_factory=list)
+    health_score: HealthScore | None = None

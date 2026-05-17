@@ -161,6 +161,37 @@
       font-size: 0.8rem;
     }
     .powered-by { margin-top: 0.35rem; font-size: 0.75rem; opacity: 0.85; }
+    .health-hero {
+      border-left: 6px solid var(--brand);
+      margin-bottom: 1.5rem;
+    }
+    .health-score-big {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--brand);
+      line-height: 1.2;
+    }
+    .health-label-badge {
+      display: inline-block;
+      margin-top: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: color-mix(in srgb, var(--brand) 12%, white);
+      color: var(--brand);
+    }
+    .severity-critical { border-left: 4px solid var(--err); }
+    .severity-high { border-left: 4px solid #c2410c; }
+    .severity-medium { border-left: 4px solid var(--warn); }
+    .severity-low { border-left: 4px solid var(--muted); }
+    .severity-info { border-left: 4px solid var(--border); }
+    .action-item {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .action-item:last-child { border-bottom: none; }
+    .action-meta { font-size: 0.82rem; color: var(--muted); margin-top: 0.25rem; }
     @media print {
       body { background: #fff; padding: 0; }
       .container { max-width: 100%; }
@@ -191,6 +222,80 @@
         Generated: {{ report.scanned_at.strftime("%Y-%m-%d %H:%M") }}
       </p>
     </header>
+
+    {% if report.health_score %}
+  <!-- Executive summary -->
+    <section>
+      <h2>Executive summary</h2>
+      <div class="card health-hero">
+        <p class="health-score-big">Site Health Score: {{ report.health_score.score }}/100</p>
+        <span class="health-label-badge">{{ report.health_score.label }}</span>
+        <div class="grid-2" style="margin-top: 1rem;">
+          <div class="stat">
+            <div class="stat-label">Critical issues</div>
+            <div class="stat-value">{{ report.health_score.critical_count }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">High issues</div>
+            <div class="stat-value">{{ report.health_score.high_count }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Medium issues</div>
+            <div class="stat-value">{{ report.health_score.medium_count }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Low issues</div>
+            <div class="stat-value">{{ report.health_score.low_count }}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Top 3 actions</h2>
+      <div class="card">
+        {% if report.health_score.top_actions %}
+        <ol class="rec-list">
+          {% for action in report.health_score.top_actions %}
+          <li class="action-item">
+            <strong>{{ loop.index }}. {{ action.title }}</strong>
+            <p class="action-meta">Reason: {{ action.reason }}</p>
+            <p class="action-meta">Severity: {{ action.severity }}</p>
+          </li>
+          {% endfor %}
+        </ol>
+        {% else %}
+        <p class="empty">No urgent actions required.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <section>
+      <h2>Issues by severity</h2>
+      {% for sev, label in [
+        ('critical', 'Critical'),
+        ('high', 'High'),
+        ('medium', 'Medium'),
+        ('low', 'Low'),
+        ('info', 'Info')
+      ] %}
+      {% set group = report.issues | selectattr('severity', 'equalto', sev) | list %}
+      {% if group %}
+      <div class="card severity-{{ sev }}" style="margin-bottom: 0.75rem;">
+        <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">{{ label }}</h3>
+        <ul class="plain">
+          {% for issue in group %}
+          <li>
+            <strong>{{ issue.title }}</strong> — {{ issue.description }}
+            <br><span class="action-meta">{{ issue.category }} · {{ issue.recommendation }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </section>
+    {% endif %}
 
     <!-- Общая сводка -->
     <section>

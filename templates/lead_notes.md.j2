@@ -1,0 +1,40 @@
+# Lead notes
+
+**Client:** {{ client_name }}
+**Site:** {{ url }}
+**Email:** {{ client_email }}
+**Generated:** {{ generated_at }}
+
+## Executive summary
+
+{% if health_score is not none %}
+Site Health Score: {{ health_score }}/100
+Status: {{ health_label }}
+{% if top_actions %}
+Top actions:
+{% for action in top_actions %}
+{{ loop.index }}. {{ action }}
+{% endfor %}
+{% endif %}
+{% else %}
+Health score: not available
+{% endif %}
+
+## Report summary
+
+- **HTTP status:** {{ status_code }}
+- **Warnings:** {{ warnings_count }}
+- **Broken links:** {{ broken_links_count }}
+- **Changes:** {{ changes_count }}
+- **Previous check found:** {{ previous_check_found }}
+
+## Suggested outreach message
+
+{{ outreach_message }}
+
+## Next steps
+
+- Review `sample_report.html`
+- Review `email_preview.html`
+- Send manually to the lead
+- If interested, add to `data/clients.csv` (`--add-to-clients-csv true`)

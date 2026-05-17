@@ -50,6 +50,13 @@ SUMMARY_CSV_COLUMNS = (
     "broken_links_count",
     "changes_count",
     "previous_check_found",
+    "health_score",
+    "health_label",
+    "critical_issues",
+    "high_issues",
+    "medium_issues",
+    "low_issues",
+    "top_actions",
     "html_path",
     "pdf_path",
 )
@@ -126,6 +133,13 @@ def write_summary_csv(path: Path, results: list[ReportRunResult], batch_dir: Pat
                     "broken_links_count": item.broken_links_count,
                     "changes_count": item.changes_count,
                     "previous_check_found": "true" if item.previous_check_found else "false",
+                    "health_score": item.health_score if item.health_score is not None else "",
+                    "health_label": item.health_label or "",
+                    "critical_issues": item.critical_issues,
+                    "high_issues": item.high_issues,
+                    "medium_issues": item.medium_issues,
+                    "low_issues": item.low_issues,
+                    "top_actions": item.top_actions or "",
                     "html_path": _relative_to_batch(item.html_path, batch_dir),
                     "pdf_path": _relative_to_batch(item.pdf_path, batch_dir),
                 }
@@ -159,6 +173,17 @@ def write_summary_html(path: Path, results: list[ReportRunResult], batch_dir: Pa
             else "-"
         )
         error_cell = escape(item.error) if item.error else "-"
+        score = item.health_score if item.health_score is not None else "—"
+        health_label = escape(item.health_label or "—")
+        top_actions_cell = escape(item.top_actions or "—")
+        score_class = ""
+        if item.health_score is not None:
+            if item.health_score < 40:
+                score_class = "score-critical"
+            elif item.health_score < 60:
+                score_class = "score-poor"
+            elif item.health_score < 75:
+                score_class = "score-warn"
 
         rows_html.append(
             f"""<tr class="{row_class}">
@@ -166,6 +191,9 @@ def write_summary_html(path: Path, results: list[ReportRunResult], batch_dir: Pa
   <td><code>{escape(item.url)}</code></td>
   <td>{report_status}</td>
   <td>{scan_ok_label}</td>
+  <td class="{score_class}">{score}</td>
+  <td class="{score_class}">{health_label}</td>
+  <td>{top_actions_cell}</td>
   <td>{item.warnings_count}</td>
   <td>{item.broken_links_count}</td>
   <td>{item.changes_count}</td>
@@ -214,6 +242,9 @@ def write_summary_html(path: Path, results: list[ReportRunResult], batch_dir: Pa
     tr.scan-fail td:nth-child(3) {{ color: #9a6700; font-weight: 600; }}
     tr.failed td:nth-child(3) {{ color: #b42318; font-weight: 600; }}
     td.err {{ color: #b42318; }}
+    td.score-critical {{ color: #b42318; font-weight: 700; }}
+    td.score-poor {{ color: #c2410c; font-weight: 600; }}
+    td.score-warn {{ color: #9a6700; font-weight: 600; }}
     code {{ word-break: break-all; }}
     a {{ color: #2563eb; }}
   </style>
@@ -229,6 +260,9 @@ def write_summary_html(path: Path, results: list[ReportRunResult], batch_dir: Pa
           <th>URL</th>
           <th>Report</th>
           <th>Scan OK</th>
+          <th>Score</th>
+          <th>Health</th>
+          <th>Top actions</th>
           <th>Warnings</th>
           <th>Broken links</th>
           <th>Changes</th>

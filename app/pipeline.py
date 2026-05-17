@@ -13,6 +13,7 @@ from app.report_builder import (
     render_report,
 )
 from app.scanner import check_robots_and_sitemap, fetch_page
+from app.scoring import copy_health_to_run_result, enrich_report_with_health
 from app.seo_checks import check_forms, run_seo_checks
 from app.storage import get_latest_check, save_check
 from app.utils import normalize_domain, normalize_url, report_output_filenames
@@ -97,6 +98,8 @@ def run_single_report(
 
         previous = get_latest_check(db_path, normalized)
         report.diff = build_report_diff(previous, report)
+        health = enrich_report_with_health(report, previous)
+        copy_health_to_run_result(result, health)
         save_check(db_path, report, normalized)
 
         result.warnings_count = len(report.all_warnings)
