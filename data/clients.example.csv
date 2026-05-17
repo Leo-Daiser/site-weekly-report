@@ -1,3 +1,3 @@
-client_name,client_email,brand_name,url,brand_color,brand_logo,footer_text,format,max_links,timeout
-Client Company,client@example.com,SEO Studio,https://example.com,#2563eb,,Prepared by SEO Studio,both,10,10
-Demo Project,demo@example.com,SEO Studio,https://www.wikipedia.org,#2563eb,,Prepared by SEO Studio,both,10,10
+client_name,client_email,brand_name,url,brand_color,brand_logo,footer_text,format,max_links,max_pages,screenshot,timeout
+Client Company,client@example.com,SEO Studio,https://example.com,#2563eb,,Prepared by SEO Studio,both,10,10,false,10
+Demo Project,demo@example.com,SEO Studio,https://www.wikipedia.org,#2563eb,,Prepared by SEO Studio,both,10,10,false,10

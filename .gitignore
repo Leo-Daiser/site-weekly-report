@@ -27,6 +27,9 @@ leads/*
 crm_exports/*
 !crm_exports/.gitkeep
 data/leads_crm.csv
+data/subscriptions.csv
+data/pending_signups.csv
+data/client_status.csv
 
 proposals/*
 !proposals/.gitkeep

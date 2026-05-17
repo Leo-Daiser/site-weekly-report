@@ -13,6 +13,8 @@ class TestSalesPackConfig(unittest.TestCase):
         config = load_sales_pack_config(path)
         self.assertEqual(config.product_name, "WebReport Weekly")
         self.assertEqual(len(config.plans), 3)
+        self.assertEqual(config.plans[0].checkout_url, "")
+        self.assertEqual(config.contact_email, "hello@webreportweekly.example")
         self.assertTrue(config.main_benefits)
 
 
@@ -67,8 +69,14 @@ class TestGenerateSalesPack(unittest.TestCase):
                 output_format="both",
             )
             self.assertTrue((pack_dir / "landing_copy.html").is_file())
+            self.assertTrue((pack_dir / "landing_page.html").is_file())
             html = (pack_dir / "landing_copy.html").read_text(encoding="utf-8")
             self.assertIn("<!DOCTYPE html>", html)
+            site = (pack_dir / "landing_page.html").read_text(encoding="utf-8")
+            self.assertIn("Choose a plan", site)
+            self.assertIn("Agency Lite", site)
+            self.assertIn("hello@webreportweekly.example", site)
+            self.assertNotIn("hello@example.com", site)
 
 
 class TestGitignoreSalesPack(unittest.TestCase):

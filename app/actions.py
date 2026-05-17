@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.models import IssueSeverity, PrioritizedAction, ReportIssue
+from app.models import ActionOwner, IssueCategory, IssueSeverity, PrioritizedAction, ReportIssue
 
 SEVERITY_RANK: dict[IssueSeverity, int] = {
     "critical": 0,
@@ -18,6 +18,18 @@ IMPACT_BY_SEVERITY: dict[IssueSeverity, str] = {
     "info": "low",
 }
 
+OWNER_BY_CATEGORY: dict[IssueCategory, ActionOwner] = {
+    "availability": "Ops",
+    "seo": "SEO",
+    "technical": "Developer",
+    "forms": "Developer",
+    "links": "Content",
+    "performance": "Developer",
+    "changes": "Ops",
+    "security": "Developer",
+    "assets": "Developer",
+}
+
 
 def build_prioritized_actions(
     issues: list[ReportIssue],
@@ -31,6 +43,7 @@ def build_prioritized_actions(
                 severity="info",
                 category="technical",
                 estimated_impact="low",
+                owner="Ops",
             )
         ]
 
@@ -53,6 +66,7 @@ def build_prioritized_actions(
                 severity=issue.severity,
                 category=issue.category,
                 estimated_impact=IMPACT_BY_SEVERITY.get(issue.severity, "medium"),
+                owner=OWNER_BY_CATEGORY.get(issue.category, "Ops"),
             )
         )
         if len(actions) >= limit:
@@ -66,6 +80,7 @@ def build_prioritized_actions(
                 severity="info",
                 category="technical",
                 estimated_impact="low",
+                owner="Ops",
             )
         ]
 

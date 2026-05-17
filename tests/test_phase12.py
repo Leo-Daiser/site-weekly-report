@@ -14,6 +14,7 @@ from app.preflight_checks import (
     PreflightContext,
     check_clients_csv,
     check_gitignore,
+    check_operator_config,
     check_playwright_pdf,
     check_project_structure,
     check_smtp_config,
@@ -94,10 +95,17 @@ class TestPreflightChecks(unittest.TestCase):
         names = {item.name for item in report.results}
         self.assertIn("Weekly job", names)
         self.assertIn("Pricing", names)
+        self.assertIn("Operator config", names)
         weekly = next(r for r in report.results if r.name == "Weekly job")
         pricing = next(r for r in report.results if r.name == "Pricing")
         self.assertIn(weekly.status, ("pass", "warning"))
         self.assertEqual(pricing.status, "pass")
+
+    def test_operator_config_warns_without_env(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            result = check_operator_config(self._ctx(""))
+        self.assertEqual(result.status, "warning")
+        self.assertIn("ADMIN_PASSWORD", result.details or "")
 
     def test_smtp_skipped_by_default(self) -> None:
         result = check_smtp_config(self._ctx("", check_smtp=False))

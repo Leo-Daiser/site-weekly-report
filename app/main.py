@@ -53,6 +53,12 @@ def main(
     report_format: FormatChoice = typer.Option(
         "html", "--format", help="Формат отчёта: html, pdf, both"
     ),
+    max_pages: int = typer.Option(
+        10, "--max-pages", help="Сколько страниц проверить в multi-page crawl"
+    ),
+    screenshot: bool = typer.Option(
+        False, "--screenshot/--no-screenshot", help="Сделать screenshot главной страницы"
+    ),
 ) -> None:
     """Сканирует главную страницу и генерирует HTML-отчёт."""
     output_format = report_format.lower()
@@ -98,6 +104,8 @@ def main(
             branding=branding,
             output_format=output_format,
             project_root=project_root,
+            max_pages=max_pages,
+            screenshot=screenshot,
         )
     except SingleReportError as exc:
         for line in str(exc).splitlines():
@@ -120,6 +128,8 @@ def main(
     )
     table.add_row("Warnings", str(result.warnings_count))
     table.add_row("Broken links", str(result.broken_links_count))
+    table.add_row("Pages checked", str(result.pages_checked_count))
+    table.add_row("Broken assets", str(result.broken_assets_count))
     table.add_row("Previous check", previous_label)
     table.add_row("Changes", str(result.changes_count))
     table.add_row("Brand", branding.brand_name)

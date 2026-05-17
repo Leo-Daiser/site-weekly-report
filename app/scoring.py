@@ -355,6 +355,88 @@ def build_report_issues(
             ),
         )
 
+    technical = report.technical
+    if technical:
+        if not technical.https_enabled:
+            _add_issue(
+                issues,
+                seen,
+                _issue(
+                    "https_missing",
+                    "Сайт не использует HTTPS",
+                    "Проверяемый URL открыт без HTTPS.",
+                    "high",
+                    "security",
+                    "Перевести сайт на HTTPS.",
+                ),
+            )
+        if technical.http_redirects_to_https is False:
+            _add_issue(
+                issues,
+                seen,
+                _issue(
+                    "http_no_https_redirect",
+                    "HTTP не ведёт на HTTPS",
+                    "HTTP-версия сайта не перенаправляет на защищённую HTTPS-версию.",
+                    "medium",
+                    "security",
+                    "Настроить 301-редирект с HTTP на HTTPS.",
+                ),
+            )
+        if technical.ssl_days_remaining is not None and technical.ssl_days_remaining < 14:
+            _add_issue(
+                issues,
+                seen,
+                _issue(
+                    "ssl_expiring",
+                    "SSL скоро истекает",
+                    f"До окончания SSL-сертификата осталось {technical.ssl_days_remaining} дней.",
+                    "high",
+                    "security",
+                    "Обновить SSL-сертификат до истечения срока.",
+                ),
+            )
+        if technical.noindex_pages:
+            _add_issue(
+                issues,
+                seen,
+                _issue(
+                    "noindex_pages",
+                    "Важные страницы с noindex",
+                    f"Найдено страниц с noindex: {len(technical.noindex_pages)}.",
+                    "high",
+                    "seo",
+                    "Проверить noindex на страницах, которые должны индексироваться.",
+                ),
+            )
+        if technical.broken_assets:
+            broken_assets_count = sum(page.broken_assets_count for page in report.crawled_pages)
+            _add_issue(
+                issues,
+                seen,
+                _issue(
+                    "broken_assets",
+                    "Битые изображения или ассеты",
+                    f"Найдено битых ассетов: {broken_assets_count}.",
+                    "medium",
+                    "assets",
+                    "Исправить битые изображения, CSS или JavaScript-файлы.",
+                ),
+            )
+        if technical.robots_blocks_homepage:
+            _add_issue(
+                issues,
+                seen,
+                _issue(
+                    "robots_blocks_homepage",
+                    "robots.txt закрывает главную",
+                    "robots.txt запрещает сканирование главной страницы.",
+                    "critical",
+                    "technical",
+                    "Исправить robots.txt, если главная должна индексироваться.",
+                ),
+            )
+
     if previous is not None:
         cur_status = page.status_code
         old_status = previous.status_code

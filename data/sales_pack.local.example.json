@@ -4,28 +4,28 @@
   "positioning": "White-label weekly website reports for agencies and freelancers",
   "primary_offer": "Weekly site health report with prioritized actions",
   "currency": "USD",
-  "contact_email": "hello@webreportweekly.example",
+  "contact_email": "hello@yourdomain.com",
   "plans": [
     {
       "id": "starter",
       "name": "Starter",
       "price": 29,
       "description": "For one website",
-      "checkout_url": ""
+      "checkout_url": "https://buy.stripe.com/replace-starter"
     },
     {
       "id": "agency-lite",
       "name": "Agency Lite",
       "price": 79,
       "description": "For up to 5 websites",
-      "checkout_url": ""
+      "checkout_url": "https://buy.stripe.com/replace-agency-lite"
     },
     {
       "id": "agency",
       "name": "Agency",
       "price": 149,
       "description": "For up to 15 websites",
-      "checkout_url": ""
+      "checkout_url": "https://buy.stripe.com/replace-agency"
     }
   ],
   "main_benefits": [
@@ -36,7 +36,7 @@
     "Change tracking vs previous report",
     "No dashboard required"
   ],
-  "demo_report_path": "reports/demo_report.html",
+  "demo_report_path": "sales_pack/demo_reports/medium_site_demo.html",
   "demo_reports": [
     "sales_pack/demo_reports/good_site_demo.html",
     "sales_pack/demo_reports/medium_site_demo.html",

@@ -192,6 +192,12 @@
     }
     .action-item:last-child { border-bottom: none; }
     .action-meta { font-size: 0.82rem; color: var(--muted); margin-top: 0.25rem; }
+    .screenshot {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-top: 0.75rem;
+    }
     @media print {
       body { background: #fff; padding: 0; }
       .container { max-width: 100%; }
@@ -247,9 +253,26 @@
             <div class="stat-label">Low issues</div>
             <div class="stat-value">{{ report.health_score.low_count }}</div>
           </div>
+          <div class="stat">
+            <div class="stat-label">Pages checked</div>
+            <div class="stat-value">{{ report.crawled_pages|length }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Noindex pages</div>
+            <div class="stat-value">{{ report.technical.noindex_pages|length if report.technical else 0 }}</div>
+          </div>
         </div>
       </div>
     </section>
+
+    {% if report.screenshot_path %}
+    <section>
+      <h2>Homepage screenshot</h2>
+      <div class="card">
+        <img class="screenshot" src="{{ report.screenshot_path }}" alt="Homepage screenshot">
+      </div>
+    </section>
+    {% endif %}
 
     <section>
       <h2>Top 3 actions</h2>
@@ -260,7 +283,7 @@
           <li class="action-item">
             <strong>{{ loop.index }}. {{ action.title }}</strong>
             <p class="action-meta">Reason: {{ action.reason }}</p>
-            <p class="action-meta">Severity: {{ action.severity }}</p>
+            <p class="action-meta">Owner: {{ action.owner }} · Severity: {{ action.severity }}</p>
           </li>
           {% endfor %}
         </ol>
@@ -526,6 +549,67 @@
         </table>
       </div>
     </section>
+
+    {% if report.technical %}
+    <section>
+      <h2>Technical checks</h2>
+      <div class="card">
+        <table>
+          <tr><th>Check</th><th>Value</th><th>Status</th></tr>
+          <tr>
+            <td>HTTPS enabled</td>
+            <td>{{ "yes" if report.technical.https_enabled else "no" }}</td>
+            <td><span class="badge {{ status_class(report.technical.https_enabled) }}">{{ "OK" if report.technical.https_enabled else "WARNING" }}</span></td>
+          </tr>
+          <tr>
+            <td>HTTP → HTTPS redirect</td>
+            <td>{{ report.technical.http_redirects_to_https if report.technical.http_redirects_to_https is not none else "unknown" }}</td>
+            <td><span class="badge {{ status_class(report.technical.http_redirects_to_https is not false, report.technical.http_redirects_to_https is none) }}">CHECK</span></td>
+          </tr>
+          <tr>
+            <td>SSL expiry</td>
+            <td>{% if report.technical.ssl_days_remaining is not none %}{{ report.technical.ssl_days_remaining }} days{% else %}unknown{% endif %}</td>
+            <td><span class="badge {{ status_class(report.technical.ssl_days_remaining is none or report.technical.ssl_days_remaining >= 14, report.technical.ssl_days_remaining is none) }}">CHECK</span></td>
+          </tr>
+          <tr>
+            <td>robots blocks homepage</td>
+            <td>{{ report.technical.robots_blocks_homepage if report.technical.robots_blocks_homepage is not none else "unknown" }}</td>
+            <td><span class="badge {{ status_class(report.technical.robots_blocks_homepage is not true, report.technical.robots_blocks_homepage is none) }}">CHECK</span></td>
+          </tr>
+          <tr>
+            <td>Noindex pages</td>
+            <td>{{ report.technical.noindex_pages|length }}</td>
+            <td><span class="badge {{ status_class(report.technical.noindex_pages|length == 0) }}">CHECK</span></td>
+          </tr>
+          <tr>
+            <td>Broken assets</td>
+            <td>{{ report.technical.broken_assets|length }}</td>
+            <td><span class="badge {{ status_class(report.technical.broken_assets|length == 0) }}">CHECK</span></td>
+          </tr>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if report.crawled_pages %}
+    <section>
+      <h2>Checked pages</h2>
+      <div class="card">
+        <table>
+          <tr><th>URL</th><th>HTTP</th><th>Title</th><th>Noindex</th><th>Broken assets</th></tr>
+          {% for item in report.crawled_pages %}
+          <tr>
+            <td><code>{{ item.final_url or item.url }}</code>{% if item.error %}<br><span class="err-item">{{ item.error }}</span>{% endif %}</td>
+            <td>{{ item.status_code if item.status_code is not none else "—" }}</td>
+            <td>{{ item.title or "—" }}</td>
+            <td>{{ "yes" if item.noindex else "no" }}</td>
+            <td>{{ item.broken_assets_count }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </section>
+    {% endif %}
 
     <!-- Формы -->
     <section>

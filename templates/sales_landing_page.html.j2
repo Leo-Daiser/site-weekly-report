@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ product_name }} - White-label weekly website reports</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5f6b7a;
+      --line: #d9e0ea;
+      --paper: #ffffff;
+      --wash: #f6f8fb;
+      --accent: #147a68;
+      --accent-dark: #0e574c;
+      --warn: #a45b13;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.5;
+    }
+    a { color: inherit; }
+    .shell { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.95);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .nav {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand { font-weight: 760; letter-spacing: 0; }
+    .nav-links { display: flex; gap: 18px; color: var(--muted); font-size: 14px; }
+    .hero {
+      padding: 72px 0 52px;
+      background: linear-gradient(180deg, #eef7f4 0%, #ffffff 78%);
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+      gap: 44px;
+      align-items: center;
+    }
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--accent-dark);
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(36px, 6vw, 62px);
+      line-height: 1.02;
+      letter-spacing: 0;
+      max-width: 820px;
+    }
+    .lead {
+      max-width: 700px;
+      margin: 22px 0 0;
+      color: var(--muted);
+      font-size: 20px;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+    .button {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: 1px solid var(--accent);
+      padding: 10px 16px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .button.primary { background: var(--accent); color: #fff; }
+    .button.primary:hover { background: var(--accent-dark); }
+    .button.secondary { background: #fff; color: var(--accent-dark); }
+    .proof {
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .report-preview {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 20px 70px rgba(23, 32, 51, 0.12);
+      overflow: hidden;
+    }
+    .preview-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 40px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      background: #f9fbfd;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #9aa6b2; }
+    .preview-body { padding: 22px; }
+    .score-row {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 18px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    .score {
+      display: grid;
+      place-items: center;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      background: #eaf6f1;
+      color: var(--accent-dark);
+      font-size: 34px;
+      font-weight: 800;
+    }
+    .mini-title { margin: 0 0 4px; font-weight: 760; }
+    .mini-copy { margin: 0; color: var(--muted); font-size: 14px; }
+    .check-list { display: grid; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; }
+    .check-list li {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: #fff;
+    }
+    section { padding: 64px 0; }
+    section.alt { background: var(--wash); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    h2 { margin: 0 0 18px; font-size: 32px; letter-spacing: 0; }
+    .section-copy { max-width: 760px; margin: 0 0 28px; color: var(--muted); font-size: 17px; }
+    .benefits {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .benefit, .plan {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .benefit strong { display: block; margin-bottom: 6px; }
+    .benefit p, .plan p { margin: 0; color: var(--muted); }
+    .plans {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .plan.featured { border-color: var(--accent); box-shadow: inset 0 4px 0 var(--accent); }
+    .plan h3 { margin: 0 0 8px; font-size: 22px; }
+    .price { margin: 12px 0 16px; font-size: 34px; font-weight: 800; }
+    .price span { color: var(--muted); font-size: 15px; font-weight: 600; }
+    .plan .button { width: 100%; margin-top: 18px; }
+    .note {
+      margin-top: 18px;
+      color: var(--warn);
+      font-size: 14px;
+    }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 20px;
+      counter-reset: steps;
+    }
+    .step {
+      border-top: 3px solid var(--accent);
+      padding-top: 14px;
+    }
+    .step::before {
+      counter-increment: steps;
+      content: counter(steps);
+      display: inline-grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+    footer { padding: 34px 0; color: var(--muted); border-top: 1px solid var(--line); }
+    @media (max-width: 860px) {
+      .hero-grid, .benefits, .plans, .steps { grid-template-columns: 1fr; }
+      .hero { padding-top: 44px; }
+      .nav-links { display: none; }
+      .score-row { grid-template-columns: 92px 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="shell nav">
+      <div class="brand">{{ product_name }}</div>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#report">Report</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#start">Start</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="shell hero-grid">
+        <div>
+          <p class="eyebrow">{{ positioning }}</p>
+          <h1>White-label weekly website reports your clients can actually read.</h1>
+          <p class="lead">
+            {{ primary_offer }} for {{ target_audience }}. Each report gives site status,
+            basic SEO, broken links, form checks, weekly changes, a health score, and the next 3 actions.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="#pricing">Choose a plan</a>
+            {% if demo_report_path %}
+            <a class="button secondary" href="{{ demo_report_path }}">View sample report</a>
+            {% endif %}
+          </div>
+          <p class="proof">Built for service businesses that need client-ready proof of work every week.</p>
+        </div>
+
+        <div class="report-preview" id="report" aria-label="Sample report preview">
+          <div class="preview-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          <div class="preview-body">
+            <div class="score-row">
+              <div class="score">82</div>
+              <div>
+                <p class="mini-title">Site Health Score</p>
+                <p class="mini-copy">A simple client-facing summary backed by deterministic checks.</p>
+              </div>
+            </div>
+            <ul class="check-list">
+              <li><strong>Action 1:</strong> Fix newly broken internal links.</li>
+              <li><strong>Action 2:</strong> Update missing meta descriptions.</li>
+              <li><strong>Action 3:</strong> Review slow pages before the next campaign.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="shell">
+        <h2>What you get every week</h2>
+        <p class="section-copy">A client-ready report under your brand, generated from repeatable checks and designed to be sent as-is or lightly edited.</p>
+        <div class="benefits">
+          {% for benefit in main_benefits %}
+          <div class="benefit">
+            <strong>{{ benefit }}</strong>
+            <p>Included in the weekly reporting workflow.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="pricing">
+      <div class="shell">
+        <h2>Pricing</h2>
+        <p class="section-copy">Start with a sample report, then subscribe when you want reports prepared every week.</p>
+        <div class="plans">
+          {% for plan in plans %}
+          <article class="plan{% if plan.id == 'agency-lite' %} featured{% endif %}">
+            <h3>{{ plan.name }}</h3>
+            <p>{{ plan.description }}</p>
+            <div class="price">{{ currency }} {{ plan.price }}<span>/mo</span></div>
+            {% if plan.checkout_url %}
+            <a class="button primary" href="{{ plan.checkout_url }}">Subscribe</a>
+            {% else %}
+            <a class="button secondary" href="mailto:{{ contact_email }}?subject={{ plan.name | urlencode }}%20plan%20for%20{{ product_name | urlencode }}">Request this plan</a>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+        <p class="note">Replace checkout URLs in the config with Stripe or PayPal payment links when you are ready to accept self-serve payments.</p>
+      </div>
+    </section>
+
+    {% if demo_reports %}
+    <section>
+      <div class="shell">
+        <h2>Demo reports</h2>
+        <p class="section-copy">Use these examples to see how the report reads for a healthy site, a site that needs attention, and a problematic site.</p>
+        <div class="benefits">
+          {% for demo in demo_reports %}
+          <div class="benefit">
+            <strong>{{ demo.split('/')[-1].replace('_', ' ').replace('.html', '').title() }}</strong>
+            <p><a href="{{ demo }}">Open demo report</a></p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    <section id="start">
+      <div class="shell">
+        <h2>How onboarding works</h2>
+        <div class="steps">
+          <div class="step">
+            <h3>Sample report</h3>
+            <p>Run a one-off report for the prospect site and send the result manually.</p>
+          </div>
+          <div class="step">
+            <h3>Plan selected</h3>
+            <p>The client chooses a website count and pays through a checkout link.</p>
+          </div>
+          <div class="step">
+            <h3>Weekly delivery</h3>
+            <p>The site is added to the weekly job and reports are prepared on schedule.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell">
+      {{ product_name }} - generated {{ generated_at }}.
+    </div>
+  </footer>
+</body>
+</html>

@@ -9,7 +9,9 @@ from typing import Literal
 import typer
 from rich.console import Console
 
+from app.billing_store import load_subscriptions
 from app.branding import load_branding_config, resolve_branding
+from app.client_status_store import paused_client_keys
 from app.config import (
     DEFAULT_DB_PATH,
     DEFAULT_MAX_LINKS,
@@ -35,6 +37,8 @@ CSV_COLUMNS = (
     "format",
     "max_links",
     "timeout",
+    "max_pages",
+    "screenshot",
 )
 
 SUMMARY_CSV_COLUMNS = (
@@ -57,6 +61,9 @@ SUMMARY_CSV_COLUMNS = (
     "medium_issues",
     "low_issues",
     "top_actions",
+    "pages_checked_count",
+    "noindex_pages_count",
+    "broken_assets_count",
     "html_path",
     "pdf_path",
 )
@@ -81,6 +88,13 @@ def _optional_float(value: str | None) -> float | None:
     if text is None:
         return None
     return float(text)
+
+
+def _optional_bool(value: str | None) -> bool | None:
+    text = _empty_to_none(value)
+    if text is None:
+        return None
+    return text.lower() in ("1", "true", "yes", "on")
 
 
 def load_clients_csv(path: Path) -> list[dict[str, str]]:
@@ -140,6 +154,9 @@ def write_summary_csv(path: Path, results: list[ReportRunResult], batch_dir: Pat
                     "medium_issues": item.medium_issues,
                     "low_issues": item.low_issues,
                     "top_actions": item.top_actions or "",
+                    "pages_checked_count": item.pages_checked_count,
+                    "noindex_pages_count": item.noindex_pages_count,
+                    "broken_assets_count": item.broken_assets_count,
                     "html_path": _relative_to_batch(item.html_path, batch_dir),
                     "pdf_path": _relative_to_batch(item.pdf_path, batch_dir),
                 }
@@ -306,11 +323,38 @@ def run_batch_from_clients_csv(
     default_max_links: int,
     default_timeout: float,
     file_config: BrandingConfig,
+    default_max_pages: int = 10,
+    default_screenshot: bool = False,
     continue_on_error: bool = True,
     limit: int | None = None,
     quiet: bool = False,
+    active_only: bool = False,
+    subscriptions_path: Path | None = None,
+    client_status_path: Path | None = None,
 ) -> BatchRunResult:
     rows = load_clients_csv(clients_path)
+    if active_only:
+        active_emails = {
+            item.customer_email.lower()
+            for item in load_subscriptions(subscriptions_path or clients_path.parent / "subscriptions.csv")
+            if item.payment_status == "active"
+        }
+        rows = [
+            row
+            for row in rows
+            if (row.get("client_email") or "").strip().lower() in active_emails
+        ]
+    if client_status_path is not None:
+        paused = paused_client_keys(client_status_path)
+        rows = [
+            row
+            for row in rows
+            if (
+                (row.get("client_email") or "").strip().lower(),
+                (row.get("url") or "").strip().rstrip("/").lower(),
+            )
+            not in paused
+        ]
     if limit is not None:
         rows = rows[:limit]
     batch_ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -325,6 +369,10 @@ def run_batch_from_clients_csv(
         row_format = _empty_to_none(row.get("format")) or default_format
         row_max_links = _optional_int(row.get("max_links")) or default_max_links
         row_timeout = _optional_float(row.get("timeout")) or default_timeout
+        row_max_pages = _optional_int(row.get("max_pages")) or default_max_pages
+        row_screenshot = _optional_bool(row.get("screenshot"))
+        if row_screenshot is None:
+            row_screenshot = default_screenshot
 
         branding, brand_warnings = _branding_for_row(file_config, row, project_root)
         for warning in brand_warnings:
@@ -345,6 +393,8 @@ def run_batch_from_clients_csv(
                 output_format=row_format.lower(),
                 project_root=project_root,
                 run_timestamp=datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+                max_pages=row_max_pages,
+                screenshot=row_screenshot,
             )
         except SingleReportError as exc:
             result = exc.result or ReportRunResult(
@@ -401,8 +451,13 @@ def run_batch(
     default_max_links: int,
     default_timeout: float,
     file_config: BrandingConfig,
+    default_max_pages: int = 10,
+    default_screenshot: bool = False,
     continue_on_error: bool = True,
     limit: int | None = None,
+    active_only: bool = False,
+    subscriptions_path: Path | None = None,
+    client_status_path: Path | None = None,
 ) -> tuple[Path, list[ReportRunResult]]:
     """Обратная совместимость: возвращает (batch_dir, results)."""
     batch_result = run_batch_from_clients_csv(
@@ -413,9 +468,14 @@ def run_batch(
         default_format=default_format,
         default_max_links=default_max_links,
         default_timeout=default_timeout,
+        default_max_pages=default_max_pages,
+        default_screenshot=default_screenshot,
         file_config=file_config,
         continue_on_error=continue_on_error,
         limit=limit,
+        active_only=active_only,
+        subscriptions_path=subscriptions_path,
+        client_status_path=client_status_path,
     )
     return batch_result.batch_dir, batch_result.results
 
@@ -433,6 +493,12 @@ def main(
     ),
     timeout: float = typer.Option(
         DEFAULT_TIMEOUT, "--timeout", help="Таймаут по умолчанию (сек)"
+    ),
+    max_pages: int = typer.Option(
+        10, "--max-pages", help="Сколько страниц проверять по умолчанию"
+    ),
+    screenshot: bool = typer.Option(
+        False, "--screenshot/--no-screenshot", help="Делать screenshot главной"
     ),
     db_path: str = typer.Option(
         DEFAULT_DB_PATH, "--db-path", help="SQLite-база истории проверок"
@@ -482,6 +548,8 @@ def main(
         default_format=output_format,
         default_max_links=max_links,
         default_timeout=timeout,
+        default_max_pages=max_pages,
+        default_screenshot=screenshot,
         file_config=file_config,
         continue_on_error=continue_on_error,
     )

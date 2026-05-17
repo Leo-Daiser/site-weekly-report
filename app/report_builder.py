@@ -62,6 +62,31 @@ def build_recommendations(report: SiteReport) -> list[str]:
             recommendations.append(rec)
             seen.add(rec)
 
+    if report.technical:
+        technical_recs = [
+            (not report.technical.https_enabled, "Перевести сайт на HTTPS."),
+            (
+                report.technical.http_redirects_to_https is False,
+                "Настроить редирект HTTP на HTTPS.",
+            ),
+            (
+                bool(report.technical.noindex_pages),
+                "Проверить noindex на важных страницах.",
+            ),
+            (
+                bool(report.technical.broken_assets),
+                "Исправить битые изображения и ассеты.",
+            ),
+            (
+                report.technical.robots_blocks_homepage is True,
+                "Проверить robots.txt: главная страница закрыта от сканирования.",
+            ),
+        ]
+        for condition, rec in technical_recs:
+            if condition and rec not in seen:
+                recommendations.append(rec)
+                seen.add(rec)
+
     return recommendations
 
 
@@ -85,6 +110,9 @@ def collect_all_warnings(report: SiteReport) -> list[str]:
 
     if report.links:
         warnings.extend(report.links.warnings)
+
+    if report.technical:
+        warnings.extend(report.technical.warnings)
 
     return warnings
 

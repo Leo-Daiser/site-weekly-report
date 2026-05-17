@@ -34,6 +34,8 @@ python -m app.main --url https://example.com
 | `--footer-text`| —            | Текст в подвале отчёта                |
 | `--branding-file` | —         | JSON с настройками брендинга          |
 | `--format`     | `html`       | `html`, `pdf` или `both`              |
+| `--max-pages`  | `10`         | Сколько страниц проверить в crawl     |
+| `--screenshot` | `false`      | Сделать screenshot главной через Playwright |
 
 Пример с параметрами:
 
@@ -167,7 +169,7 @@ python -m app.batch --clients data/clients.example.csv --output-dir reports --fo
 
 Обязательные поля: `client_name`, `url`.
 
-Опциональные: `client_email`, `brand_name`, `brand_color`, `brand_logo`, `footer_text`, `format`, `max_links`, `timeout`.
+Опциональные: `client_email`, `brand_name`, `brand_color`, `brand_logo`, `footer_text`, `format`, `max_links`, `max_pages`, `screenshot`, `timeout`.
 
 Если `format`, `max_links` или `timeout` пустые — используются значения из CLI (`--format`, `--max-links`, `--timeout`).
 
@@ -335,6 +337,18 @@ python -m app.main --url https://example.com --format html
 ```
 
 В HTML-отчёте: score, label, top actions, issues by severity. Те же поля есть в batch `summary.csv`, email preview и `client.json` при onboard.
+
+Дополнительно отчёт поддерживает расширенные проверки:
+
+- multi-page crawl (`--max-pages`, по умолчанию 10);
+- sitemap discovery с fallback на внутренние ссылки;
+- HTTPS / HTTP→HTTPS / SSL expiry;
+- noindex на проверенных страницах;
+- robots.txt blocking homepage;
+- битые изображения и ассеты;
+- optional homepage screenshot (`--screenshot`).
+
+В `Top 3 actions` указывается owner: `SEO`, `Developer`, `Content` или `Ops`.
 
 ## Client onboarding and sample reports (Фаза 7)
 
@@ -514,7 +528,7 @@ python -m app.preflight --clients-csv data/clients.local.csv --weekly-job-file d
 
 **READY** = нет `fail`; при `--strict true` любой `warning` тоже даёт NOT READY.
 
-Проверки: структура проекта, `.gitignore`, example-файлы, clients CSV, weekly job, pricing, branding, runtime-папки, опционально Playwright PDF и SMTP env, smoke imports, `git status` на артефакты.
+Проверки: структура проекта, `.gitignore`, example-файлы, clients CSV, weekly job, pricing, branding, runtime-папки, operator config, опционально Playwright PDF и SMTP env, smoke imports, `git status` на артефакты.
 
 Markdown-отчёт: `preflight_reports/preflight_YYYY-MM-DD_HH-MM-SS.md` (при `--format md` или `both`).
 
@@ -549,11 +563,94 @@ python -m app.sales_pack generate --config data/sales_pack.example.json --output
 
 Материалы редактируйте вручную перед отправкой клиентам. Для demo используйте `app.onboard` и при необходимости `app.proposal`.
 
+При `--format html` или `--format both` дополнительно создаётся `landing_page.html` — статическая страница с оффером, тарифами, ссылкой на sample report и CTA для оплаты. Чтобы включить self-serve оплату без полноценного SaaS, добавьте Stripe/PayPal payment links в `checkout_url` для каждого тарифа в `data/sales_pack.example.json` или в своём локальном конфиге.
+
+Для локального конфига без секретов используйте `data/sales_pack.local.example.json`: замените `contact_email` и `checkout_url` на реальные значения.
+
+## Demo reports (Фаза 14)
+
+Стабильные demo reports для продаж генерируются без сети:
+
+```bash
+python -m app.demo_reports generate
+```
+
+Результат:
+
+- `sales_pack/demo_reports/good_site_demo.html`
+- `sales_pack/demo_reports/medium_site_demo.html`
+- `sales_pack/demo_reports/problem_site_demo.html`
+- новый sales pack с `landing_page.html`, где есть ссылки на demo reports
+
+## Billing foundation
+
+Локальная Stripe-compatible основа работает без обязательного Stripe SDK. Реальные секреты берутся только из env:
+
+```bash
+python -m app.billing verify-config
+python -m app.billing list
+python -m app.billing sync-local --event-file stripe_event.json
+```
+
+Поддерживаемые события:
+
+- `checkout.session.completed`
+- `invoice.paid`
+- `invoice.payment_failed`
+- `customer.subscription.deleted`
+
+Статусы подписки: `pending_payment`, `active`, `payment_failed`, `cancelled`. Локальное хранилище: `data/subscriptions.csv` (не коммитится).
+
+## Admin and signups
+
+Заявки после оплаты можно принимать и approve-ить через CLI:
+
+```bash
+python -m app.signups create --agency-name "Demo Agency" --billing-email billing@example.com --report-recipient-email reports@example.com --plan agency-lite --website-urls https://example.com
+python -m app.signups list
+python -m app.signups approve --signup-id signup_0001 --weekly-job-file data/weekly_jobs.local.json
+```
+
+Минимальная admin-only FastAPI админка:
+
+```bash
+uvicorn app.admin_app:app --reload
+```
+
+Если задан `ADMIN_PASSWORD`, откройте `/admin/login` и войдите один раз: админка сохранит `admin_session` cookie. Для API/скриптов также поддерживаются query `?admin_password=...` и header `x-admin-password`.
+
+Admin routes:
+
+- `/signup` — публичная форма setup после оплаты;
+- `/signup/thanks/{signup_id}` — подтверждение принятой заявки;
+- `/admin/signups` — заявки и approve;
+- `/admin/clients` — операторская таблица из `clients.csv`: payment status, operational status, latest report, latest summary, client package, `Run now`, pause/resume, needs-review;
+- `/admin/clients/detail` — конфиг клиента, payment/operational status, latest report/package и последний run log;
+- `/admin/runs` — weekly/admin run logs и batch `Run now`;
+- `/admin/runs/detail` — parsed JSON details по конкретному run log;
+- `/admin/outbox` — отправка prepared писем из outbox;
+- `/webhooks/stripe` — Stripe webhook endpoint.
+
+Если задан `STRIPE_WEBHOOK_SECRET`, `/webhooks/stripe` проверяет `stripe-signature` через Stripe SDK. Если secret не задан, endpoint работает в локальном JSON sync режиме.
+
+Weekly runner может пропускать клиентов без активной подписки:
+
+```bash
+python -m app.weekly --job-file data/weekly_jobs.local.json --mode send --active-only true
+```
+
+Клиентские operational statuses (`active`, `paused`, `needs_review`) хранятся в `data/client_status.csv` и тоже учитываются weekly runner.
+
+Single-site запуск из `/admin/clients` создаёт `reports/admin_run_YYYY-MM-DD_HH-MM-SS/` и lightweight JSON log в `run_logs/admin_run_YYYY-MM-DD_HH-MM-SS.json`. Email при этом не отправляется автоматически.
+
+Подробная инструкция локального/VPS запуска: `docs/LOCAL_OPERATOR_RUNBOOK.md`.
+
 ## Следующие фазы (план)
 
-- Планировщик еженедельных отчётов
-- Мульти-страничный краул
-- Web-интерфейс и учётные записи (SaaS)
+- Публичная signup/payment страница, связанная с живым Stripe Checkout
+- Client portal
+- Postgres/storage migration для multi-tenant режима
+- Production deploy automation и reverse proxy/HTTPS
 - Интеграции (Search Console, аналитика)
 
 ## Тесты

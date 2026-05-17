@@ -18,12 +18,15 @@ SALES_ASSET_TEMPLATES: dict[str, str] = {
     "demo_report_notes.md": "sales_demo_report_notes.md.j2",
 }
 
+SALES_SITE_TEMPLATE = "sales_landing_page.html.j2"
+
 
 class SalesPlanItem(BaseModel):
     id: str
     name: str
     price: int | float
     description: str = ""
+    checkout_url: str = ""
 
 
 class SalesPackConfig(BaseModel):
@@ -32,9 +35,11 @@ class SalesPackConfig(BaseModel):
     positioning: str
     primary_offer: str
     currency: str = "USD"
+    contact_email: str = "hello@example.com"
     plans: list[SalesPlanItem] = Field(default_factory=list)
     main_benefits: list[str] = Field(default_factory=list)
     demo_report_path: str = ""
+    demo_reports: list[str] = Field(default_factory=list)
 
 
 def load_sales_pack_config(path: Path) -> SalesPackConfig:
@@ -53,9 +58,11 @@ def build_template_context(config: SalesPackConfig, *, generated_at: str) -> dic
         "positioning": config.positioning,
         "primary_offer": config.primary_offer,
         "currency": config.currency,
+        "contact_email": config.contact_email,
         "plans": config.plans,
         "main_benefits": config.main_benefits,
         "demo_report_path": config.demo_report_path,
+        "demo_reports": config.demo_reports,
         "generated_at": generated_at,
         "agency_lite": agency_lite,
     }
@@ -148,6 +155,12 @@ def generate_sales_pack(
             output_format=output_format,
         )
         generated_files.append(filename)
+
+    if output_format.lower() in ("html", "both"):
+        site_html = render_sales_asset(SALES_SITE_TEMPLATE, context, template_dir=template_dir)
+        site_path = pack_dir / "landing_page.html"
+        site_path.write_text(site_html, encoding="utf-8")
+        generated_files.append("landing_page.html")
 
     index_lines = [
         "# Sales Pack Index",

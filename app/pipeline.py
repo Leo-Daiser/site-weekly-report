@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+from app.crawler import crawl_site
 from app.diff import build_report_diff
 from app.link_checker import run_link_checks
 from app.models import BrandingConfig, PageFetchResult, ReportRunResult, SiteReport
@@ -14,8 +15,10 @@ from app.report_builder import (
 )
 from app.scanner import check_robots_and_sitemap, fetch_page
 from app.scoring import copy_health_to_run_result, enrich_report_with_health
+from app.screenshots import ScreenshotError, capture_homepage_screenshot
 from app.seo_checks import check_forms, run_seo_checks
 from app.storage import get_latest_check, save_check
+from app.technical_checks import build_technical_checks
 from app.utils import normalize_domain, normalize_url, report_output_filenames
 
 
@@ -47,6 +50,8 @@ def run_single_report(
     output_format: str,
     project_root: Path,
     run_timestamp: str | None = None,
+    max_pages: int = 10,
+    screenshot: bool = False,
 ) -> ReportRunResult:
     """Сканирует сайт, сохраняет историю и генерирует отчёт(ы)."""
     result = ReportRunResult(
@@ -90,6 +95,9 @@ def run_single_report(
             forms=forms,
             links=links,
         )
+        crawl_base = page.final_url or source_url
+        report.crawled_pages = crawl_site(crawl_base, page.html, max_pages, timeout)
+        report.technical = build_technical_checks(crawl_base, report.crawled_pages, timeout)
         report.all_warnings = collect_all_warnings(report)
         report.recommendations = build_recommendations(report)
 
@@ -106,6 +114,9 @@ def run_single_report(
         result.broken_links_count = links.broken_count if links else 0
         result.changes_count = report.diff.change_count if report.diff else 0
         result.previous_check_found = bool(report.diff and report.diff.has_previous)
+        result.pages_checked_count = len(report.crawled_pages)
+        result.noindex_pages_count = len(report.technical.noindex_pages) if report.technical else 0
+        result.broken_assets_count = sum(page.broken_assets_count for page in report.crawled_pages)
 
         output_dir.mkdir(parents=True, exist_ok=True)
         template_dir = project_root / "templates"
@@ -113,6 +124,15 @@ def run_single_report(
         ts = run_timestamp or datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         html_filename, pdf_filename = report_output_filenames(report_url, ts)
         html_path = output_dir / html_filename
+
+        if screenshot:
+            screenshot_path = output_dir / html_filename.replace(".html", ".png")
+            try:
+                capture_homepage_screenshot(report_url, screenshot_path)
+                report.screenshot_path = screenshot_path.name
+                result.screenshot_path = str(screenshot_path)
+            except ScreenshotError as exc:
+                result.branding_warnings.append(str(exc))
 
         _, render_warnings = render_report(report, template_dir, html_path, branding)
         result.branding_warnings.extend(render_warnings)

@@ -23,10 +23,16 @@ REQUIRED_PROJECT_PATHS = (
     "app/crm.py",
     "app/proposal.py",
     "app/convert_client.py",
+    "app/admin_app.py",
+    "app/admin_clients.py",
+    "app/admin_views.py",
+    "app/billing.py",
+    "app/signups.py",
     "app/pipeline.py",
     "templates/report.html.j2",
     "data/clients.example.csv",
     "data/weekly_jobs.example.json",
+    "data/sales_pack.local.example.json",
     "data/pricing.example.json",
     "branding/default.json",
     "reports/.gitkeep",
@@ -58,6 +64,9 @@ GITIGNORE_REQUIRED_PATTERNS = (
     "data/clients.csv",
     "data/clients.local.csv",
     "data/weekly_jobs.local.json",
+    "data/subscriptions.csv",
+    "data/pending_signups.csv",
+    "data/client_status.csv",
     ".env",
     "__pycache__/",
     "*.pyc",
@@ -74,6 +83,8 @@ CLIENTS_CSV_COLUMNS = (
     "footer_text",
     "format",
     "max_links",
+    "max_pages",
+    "screenshot",
     "timeout",
 )
 
@@ -86,6 +97,8 @@ WEEKLY_JOB_FIELDS = (
     "branding_file",
     "format",
     "max_links",
+    "max_pages",
+    "screenshot",
     "timeout",
     "create_outbox",
     "send_email",
@@ -134,6 +147,13 @@ SMTP_ENV_VARS = (
     "SMTP_USE_TLS",
 )
 
+ADMIN_ENV_VARS = ("ADMIN_PASSWORD",)
+
+STRIPE_ENV_VARS = (
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+)
+
 SMOKE_MODULES = (
     "app.main",
     "app.batch",
@@ -142,6 +162,9 @@ SMOKE_MODULES = (
     "app.crm",
     "app.proposal",
     "app.convert_client",
+    "app.admin_app",
+    "app.billing",
+    "app.signups",
 )
 
 DEMO_EMAIL_MARKERS = ("demo@example.com", "client@example.com", "example.com")
@@ -608,6 +631,73 @@ def check_smoke_tests(ctx: PreflightContext) -> PreflightCheckResult:
     )
 
 
+def check_operator_config(ctx: PreflightContext) -> PreflightCheckResult:
+    warnings: list[str] = []
+    errors: list[str] = []
+
+    sales_config = ctx.project_root / "data/sales_pack.local.example.json"
+    if not sales_config.is_file():
+        errors.append("data/sales_pack.local.example.json is missing")
+    else:
+        try:
+            json.loads(sales_config.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"sales_pack.local.example.json: {exc}")
+
+    try:
+        weekly_data = json.loads(ctx.weekly_job_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        errors.append(f"weekly job config unreadable: {exc}")
+        weekly_data = {}
+
+    if weekly_data:
+        missing_weekly = [
+            field for field in ("max_pages", "screenshot") if field not in weekly_data
+        ]
+        if missing_weekly:
+            warnings.append(
+                "weekly job config missing operator fields: "
+                + ", ".join(missing_weekly)
+            )
+
+    missing_admin = [
+        name for name in ADMIN_ENV_VARS if not os.environ.get(name, "").strip()
+    ]
+    if missing_admin:
+        warnings.append(
+            "admin password env is not set: " + ", ".join(missing_admin)
+        )
+
+    missing_stripe = [
+        name for name in STRIPE_ENV_VARS if not os.environ.get(name, "").strip()
+    ]
+    if missing_stripe:
+        warnings.append(
+            "Stripe env is not set: " + ", ".join(missing_stripe)
+        )
+
+    if errors:
+        return _result(
+            "Operator config",
+            "fail",
+            "Operator MVP configuration has blocking issue(s).",
+            details="; ".join(errors),
+        )
+    if warnings:
+        return _result(
+            "Operator config",
+            "warning",
+            "Operator MVP can run locally, but production env is incomplete.",
+            details="; ".join(warnings),
+            recommendation="Set ADMIN_PASSWORD and Stripe env on the VPS before live use.",
+        )
+    return _result(
+        "Operator config",
+        "pass",
+        "Operator config files and production env are present.",
+    )
+
+
 def check_git_status(ctx: PreflightContext) -> PreflightCheckResult:
     git_dir = ctx.project_root / ".git"
     if not git_dir.exists():
@@ -648,7 +738,8 @@ def check_git_status(ctx: PreflightContext) -> PreflightCheckResult:
             continue
         normalized = path_part.replace("\\", "/")
         for marker in GIT_ARTIFACT_MARKERS:
-            if normalized == marker.rstrip("/") or normalized.startswith(marker):
+            is_dir_marker = marker.endswith("/") or "/" in marker
+            if normalized == marker.rstrip("/") or (is_dir_marker and normalized.startswith(marker)):
                 tracked_artifacts.append(normalized)
                 break
 
@@ -684,6 +775,7 @@ def run_preflight_checks(ctx: PreflightContext) -> PreflightReport:
         check_playwright_pdf,
         check_smtp_config,
         check_smoke_tests,
+        check_operator_config,
         check_git_status,
     ]
     results = [checker(ctx) for checker in checks]

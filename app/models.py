@@ -71,7 +71,11 @@ IssueCategory = Literal[
     "links",
     "performance",
     "changes",
+    "security",
+    "assets",
 ]
+
+ActionOwner = Literal["SEO", "Developer", "Content", "Ops"]
 
 
 class DiffChange(BaseModel):
@@ -200,6 +204,8 @@ class WeeklyJobConfig(BaseModel):
     branding_file: str | None = "branding/default.json"
     format: ReportFormat = "html"
     max_links: int = 30
+    max_pages: int = 10
+    screenshot: bool = False
     timeout: float = 10
     create_outbox: bool = True
     send_email: bool = False
@@ -244,6 +250,31 @@ class PrioritizedAction(BaseModel):
     severity: IssueSeverity
     category: IssueCategory
     estimated_impact: str
+    owner: ActionOwner = "Ops"
+
+
+class CrawledPageResult(BaseModel):
+    url: str
+    final_url: str | None = None
+    status_code: int | None = None
+    response_time_ms: float | None = None
+    title: str | None = None
+    h1_count: int = 0
+    noindex: bool = False
+    broken_assets_count: int = 0
+    error: str | None = None
+
+
+class TechnicalCheckResult(BaseModel):
+    https_enabled: bool = False
+    http_redirects_to_https: bool | None = None
+    ssl_valid: bool | None = None
+    ssl_expires_at: str | None = None
+    ssl_days_remaining: int | None = None
+    robots_blocks_homepage: bool | None = None
+    noindex_pages: list[str] = Field(default_factory=list)
+    broken_assets: list[LinkItem] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class HealthScore(BaseModel):
@@ -268,6 +299,53 @@ LeadStatus = Literal[
     "converted",
     "lost",
 ]
+
+PaymentStatus = Literal[
+    "pending_payment",
+    "active",
+    "payment_failed",
+    "cancelled",
+]
+
+
+class SubscriptionRecord(BaseModel):
+    customer_email: str
+    plan_id: str
+    payment_status: PaymentStatus = "pending_payment"
+    stripe_customer_id: str | None = None
+    stripe_subscription_id: str | None = None
+    current_period_end: str | None = None
+    updated_at: str = ""
+
+
+SignupStatus = Literal["pending", "approved", "needs_review", "rejected"]
+
+
+class SignupRecord(BaseModel):
+    signup_id: str
+    agency_name: str
+    billing_email: str
+    report_recipient_email: str
+    plan_id: str
+    website_urls: str
+    brand_name: str = ""
+    brand_color: str = "#2563eb"
+    logo_url: str | None = None
+    status: SignupStatus = "pending"
+    created_at: str = ""
+    approved_at: str | None = None
+    notes: str = ""
+
+
+ClientOperationalStatus = Literal["active", "paused", "needs_review"]
+
+
+class ClientStatusRecord(BaseModel):
+    client_email: str
+    url: str
+    status: ClientOperationalStatus = "active"
+    reason: str = ""
+    updated_at: str = ""
 
 
 class LeadRecord(BaseModel):
@@ -422,6 +500,10 @@ class ReportRunResult(BaseModel):
     medium_issues: int = 0
     low_issues: int = 0
     top_actions: str = ""
+    pages_checked_count: int = 0
+    noindex_pages_count: int = 0
+    broken_assets_count: int = 0
+    screenshot_path: str | None = None
 
 
 PreflightStatus = Literal["pass", "warning", "fail", "skipped"]
@@ -463,3 +545,6 @@ class SiteReport(BaseModel):
     diff: ReportDiff | None = None
     issues: list[ReportIssue] = Field(default_factory=list)
     health_score: HealthScore | None = None
+    crawled_pages: list[CrawledPageResult] = Field(default_factory=list)
+    technical: TechnicalCheckResult | None = None
+    screenshot_path: str | None = None

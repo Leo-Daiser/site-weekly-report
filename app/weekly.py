@@ -81,6 +81,9 @@ def execute_weekly_run(
     clients_limit: int | None = None,
     report_format: str | None = None,
     smtp_overrides: dict[str, object] | None = None,
+    active_only: bool = False,
+    subscriptions_path: Path | None = None,
+    client_status_path: Path | None = None,
 ) -> tuple[WeeklyRunLog, Path]:
     started = utc_now_iso()
     run_id = weekly_run_id()
@@ -145,9 +148,14 @@ def execute_weekly_run(
                 default_format=fmt,
                 default_max_links=job.max_links,
                 default_timeout=job.timeout,
+                default_max_pages=job.max_pages,
+                default_screenshot=job.screenshot,
                 file_config=file_config,
                 continue_on_error=job.continue_on_error,
                 limit=limit,
+                active_only=active_only,
+                subscriptions_path=subscriptions_path,
+                client_status_path=client_status_path,
             )
 
             log.batch_dir = path_for_log(batch_result.batch_dir, project_root)
@@ -257,6 +265,15 @@ def main(
     smtp_from_email: str | None = typer.Option(None, "--smtp-from-email"),
     smtp_from_name: str | None = typer.Option(None, "--smtp-from-name"),
     smtp_use_tls: bool | None = typer.Option(None, "--smtp-use-tls/--no-smtp-use-tls"),
+    active_only: bool = typer.Option(
+        False, "--active-only/--all-clients", help="Run only clients with active subscription"
+    ),
+    subscriptions_path: str = typer.Option(
+        "data/subscriptions.csv", "--subscriptions-path", help="Local subscriptions CSV"
+    ),
+    client_status_path: str = typer.Option(
+        "data/client_status.csv", "--client-status-path", help="Local client status CSV"
+    ),
 ) -> None:
     """Еженедельный оркестратор: batch, outbox и опциональная отправка email."""
     project_root = Path(__file__).resolve().parent.parent
@@ -288,6 +305,9 @@ def main(
             clients_limit=limit,
             report_format=report_format,
             smtp_overrides=smtp_overrides,
+            active_only=active_only,
+            subscriptions_path=resolve_project_path(subscriptions_path, project_root),
+            client_status_path=resolve_project_path(client_status_path, project_root),
         )
     except typer.Exit:
         raise
