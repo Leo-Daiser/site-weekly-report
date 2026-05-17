@@ -18,6 +18,7 @@ console = Console()
 FormatChoice = Literal["html", "pdf", "both"]
 DEFAULT_LEADS_DIR = "leads"
 DEFAULT_CLIENTS_CSV = "data/clients.csv"
+DEFAULT_CRM_CSV = "data/leads_crm.csv"
 
 
 def _parse_bool_option(value: bool | str) -> bool:
@@ -68,6 +69,14 @@ def main(
     clients_csv: str = typer.Option(
         DEFAULT_CLIENTS_CSV, "--clients-csv", help="Путь к clients CSV"
     ),
+    add_to_crm: str = typer.Option(
+        "false",
+        "--add-to-crm",
+        help="Добавить лида в CRM CSV: true / false",
+    ),
+    crm_csv: str = typer.Option(
+        DEFAULT_CRM_CSV, "--crm-path", help="Путь к leads CRM CSV"
+    ),
 ) -> None:
     """Онбординг лида: sample-report и deliverable-папка без автоматической отправки email."""
     output_format = report_format.lower()
@@ -117,6 +126,8 @@ def main(
             template_dir=template_dir,
             add_to_clients_csv=_parse_bool_option(add_to_clients_csv),
             clients_csv=resolve_project_path(clients_csv, project_root),
+            add_to_crm=_parse_bool_option(add_to_crm),
+            crm_csv=resolve_project_path(crm_csv, project_root),
             brand_logo_cli=brand_logo,
             footer_text_cli=footer_text,
             branding_warnings=branding_warnings,
@@ -149,6 +160,11 @@ def main(
             else "[yellow]already exists[/yellow]"
         )
         table.add_row("clients.csv", label)
+    if result.crm_status:
+        if result.crm_status == "duplicate":
+            table.add_row("CRM", "[yellow]duplicate[/yellow]")
+        else:
+            table.add_row("CRM", f"[green]{result.crm_status}[/green]")
     console.print(table)
     console.print(
         "\n[dim]Email не отправлялся. Проверьте sample_report и email_preview вручную.[/dim]\n"

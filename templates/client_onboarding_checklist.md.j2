@@ -1,0 +1,29 @@
+# Client onboarding checklist
+
+Client: {{ client_name }}
+Site: {{ url }}
+Plan: {{ plan_name }}
+Price: {{ currency }} {{ price_monthly }}/month
+
+## Before first weekly run
+
+- Confirm client email
+- Confirm target website URL
+- Confirm report format
+- Confirm brand name
+- Confirm report delivery cadence
+- Run first report manually
+- Review report before sending
+- Add client to weekly job
+
+## First report command
+
+```bash
+python -m app.main --url {{ url }} --brand-name "{{ brand_name }}" --client-name "{{ client_name }}" --format {{ format }}
+```
+
+## Weekly batch command
+
+```bash
+python -m app.weekly --job-file data/weekly_jobs.example.json --mode outbox
+```

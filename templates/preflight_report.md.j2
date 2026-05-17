@@ -1,0 +1,29 @@
+# Preflight report
+
+Generated: {{ finished_at }}
+
+Ready: {% if ready %}yes{% else %}no{% endif %}
+
+## Summary
+
+- Passed: {{ passed }}
+- Warnings: {{ warnings }}
+- Failed: {{ failed }}
+- Skipped: {{ skipped }}
+
+## Checks
+
+{% for check in results %}
+### {{ check.status | upper }} — {{ check.name }}
+
+{{ check.message }}
+
+{% if check.details %}
+Details: {{ check.details }}
+{% endif %}
+{% if check.recommendation %}
+
+Recommendation: {{ check.recommendation }}
+{% endif %}
+
+{% endfor %}

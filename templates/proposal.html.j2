@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Weekly Site Report Proposal — {{ client_name }}</title>
+  <style>
+    :root {
+      --accent: #2563eb;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --bg: #f8fafc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      line-height: 1.5;
+      color: var(--text);
+      margin: 0;
+      padding: 2rem 1rem;
+      background: var(--bg);
+    }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    header {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+    h1 { margin: 0 0 0.5rem; font-size: 1.5rem; }
+    .meta { color: var(--muted); font-size: 0.95rem; }
+    section {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+    h2 { margin: 0 0 0.75rem; font-size: 1.1rem; color: var(--accent); }
+    ul { margin: 0.5rem 0 0; padding-left: 1.25rem; }
+    .price-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-top: 0.75rem;
+    }
+    .price-main { font-size: 1.35rem; font-weight: 700; }
+    .snapshot span { display: inline-block; margin-right: 1rem; }
+    a { color: var(--accent); }
+    p { margin: 0.5rem 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Weekly Site Report Proposal</h1>
+      <p class="meta"><strong>Client:</strong> {{ client_name }}<br>
+      <strong>Site:</strong> <a href="{{ url }}">{{ url }}</a><br>
+      <strong>Prepared:</strong> {{ created_at }}</p>
+    </header>
+
+    <section>
+      <h2>Current site snapshot</h2>
+      <p class="snapshot">
+        <span><strong>Health Score:</strong> {% if health_score is not none %}{{ health_score }}/100{% else %}n/a{% endif %}</span>
+        <span><strong>Status:</strong> {{ health_label or "n/a" }}</span>
+      </p>
+      {% if sample_report_path %}
+      <p><strong>Sample report:</strong> {{ sample_report_path }}</p>
+      {% else %}
+      <p><strong>Sample report:</strong> not attached</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <h2>What I found</h2>
+      <p>{{ findings_text }}</p>
+    </section>
+
+    <section>
+      <h2>Proposed service</h2>
+      <p><strong>Plan:</strong> {{ plan.name }}</p>
+      <div class="price-box">
+        <p class="price-main">{{ currency }} {{ plan.price_monthly }} / month</p>
+        {% if plan.setup_fee %}
+        <p>Setup fee: {{ currency }} {{ plan.setup_fee }}</p>
+        {% endif %}
+        <p style="color: var(--muted); margin-bottom: 0;">{{ plan.description }}</p>
+      </div>
+      <h2 style="margin-top: 1.25rem; font-size: 1rem;">Includes</h2>
+      <ul>
+        {% for feature in plan.features %}
+        <li>{{ feature }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section>
+      <h2>Weekly deliverable</h2>
+      <ul>
+        <li>Site health score</li>
+        <li>Technical availability check</li>
+        <li>Basic SEO checks</li>
+        <li>Broken internal links</li>
+        <li>Forms check</li>
+        <li>Change tracking vs previous report</li>
+        <li>Top 3 prioritized actions</li>
+        <li>White-label report package, if included in plan</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Next step</h2>
+      <p>If this is useful, we can start with one trial weekly report cycle and then continue monthly.</p>
+    </section>
+  </div>
+</body>
+</html>

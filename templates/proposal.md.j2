@@ -1,0 +1,42 @@
+# Weekly Site Report Proposal
+
+Client: {{ client_name }}
+Site: {{ url }}
+Prepared: {{ created_at }}
+
+## Current site snapshot
+
+- Health Score: {% if health_score is not none %}{{ health_score }}/100{% else %}n/a{% endif %}
+- Status: {{ health_label or "n/a" }}
+- Sample report: {{ sample_report_path or "not attached" }}
+
+## What I found
+
+{{ findings_text }}
+
+## Proposed service
+
+Plan: {{ plan.name }}
+Price: {{ currency }} {{ plan.price_monthly }}/month
+Setup fee: {{ currency }} {{ plan.setup_fee }}
+
+Includes:
+{% for feature in plan.features %}
+- {{ feature }}
+{% endfor %}
+
+## Weekly deliverable
+
+Every week you receive:
+- Site health score
+- Technical availability check
+- Basic SEO checks
+- Broken internal links
+- Forms check
+- Change tracking vs previous report
+- Top 3 prioritized actions
+- White-label report package, if included in plan
+
+## Next step
+
+If this is useful, we can start with one trial weekly report cycle and then continue monthly.

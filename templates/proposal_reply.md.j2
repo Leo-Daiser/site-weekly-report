@@ -1,0 +1,19 @@
+Привет.
+
+Я подготовил короткое предложение по еженедельным отчётам для сайта {{ url }}.
+
+Кратко:
+- Health Score: {% if health_score is not none %}{{ health_score }}/100{% else %}n/a{% endif %}
+- Предлагаемый формат: {{ plan.name }}
+- Стоимость: {{ currency }} {{ plan.price_monthly }}/мес{% if plan.setup_fee %} + {{ currency }} {{ plan.setup_fee }} setup{% endif %}
+
+Что входит:
+- еженедельный отчёт;
+- проверка доступности;
+- базовое SEO;
+- битые ссылки;
+- формы;
+- изменения за неделю;
+- 3 приоритетных действия.
+
+Файл proposal и sample-report можно приложить к сообщению.

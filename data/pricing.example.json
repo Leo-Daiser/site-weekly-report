@@ -1,0 +1,52 @@
+{
+  "currency": "USD",
+  "plans": {
+    "starter": {
+      "name": "Starter",
+      "price_monthly": 29,
+      "setup_fee": 0,
+      "sites_included": 1,
+      "description": "Weekly report for one website",
+      "features": [
+        "1 website",
+        "Weekly HTML report",
+        "Availability check",
+        "Basic SEO checks",
+        "Broken internal links",
+        "Top 3 actions"
+      ]
+    },
+    "agency-lite": {
+      "name": "Agency Lite",
+      "price_monthly": 79,
+      "setup_fee": 99,
+      "sites_included": 5,
+      "description": "White-label weekly reports for up to 5 websites",
+      "features": [
+        "Up to 5 websites",
+        "White-label HTML/PDF reports",
+        "Weekly site health score",
+        "SEO basics",
+        "Broken links",
+        "Forms check",
+        "Change tracking",
+        "Email-ready report package"
+      ]
+    },
+    "agency": {
+      "name": "Agency",
+      "price_monthly": 149,
+      "setup_fee": 149,
+      "sites_included": 15,
+      "description": "White-label reporting package for small agencies",
+      "features": [
+        "Up to 15 websites",
+        "White-label HTML/PDF reports",
+        "Batch reports",
+        "Weekly change tracking",
+        "Outbox/email delivery support",
+        "Priority report customization"
+      ]
+    }
+  }
+}

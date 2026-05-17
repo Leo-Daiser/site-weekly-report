@@ -9,6 +9,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from app.crm_store import register_onboarded_lead
 from app.models import BrandingConfig, LeadClientRecord, OnboardResult, ReportRunResult
 from app.outbox import render_email_bodies
 from app.pipeline import SingleReportError, run_single_report
@@ -241,6 +242,8 @@ def run_onboard(
     template_dir: Path,
     add_to_clients_csv: bool = False,
     clients_csv: Path | None = None,
+    add_to_crm: bool = False,
+    crm_csv: Path | None = None,
     brand_logo_cli: str | None = None,
     footer_text_cli: str | None = None,
     branding_warnings: list[str] | None = None,
@@ -358,6 +361,25 @@ def run_onboard(
             timeout=timeout,
         )
 
+    crm_status: str | None = None
+    if add_to_crm and crm_csv is not None:
+        sample_rel = ""
+        if html_copy is not None:
+            try:
+                sample_rel = html_copy.relative_to(project_root).as_posix()
+            except ValueError:
+                sample_rel = html_copy.as_posix()
+        crm_status = register_onboarded_lead(
+            crm_csv,
+            client_name=name,
+            client_email=email,
+            url=source_url,
+            sample_report_path=sample_rel,
+            health_score=report_result.health_score,
+            health_label=report_result.health_label,
+            source="onboard",
+        )
+
     return OnboardResult(
         lead_dir=lead_dir,
         client_json_path=client_json_path,
@@ -369,4 +391,5 @@ def run_onboard(
         report_result=report_result,
         warnings=warnings,
         clients_csv_status=csv_status,
+        crm_status=crm_status,
     )

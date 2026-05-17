@@ -1,0 +1,2 @@
+client_name,client_email,brand_name,url,brand_color,brand_logo,footer_text,format,max_links,timeout
+Demo Client,demo@example.com,Demo Client,https://example.com,#2563eb,,Prepared by Demo Client,both,30,10

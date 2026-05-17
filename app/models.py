@@ -257,6 +257,107 @@ class HealthScore(BaseModel):
     top_actions: list[PrioritizedAction] = Field(default_factory=list)
 
 
+LeadStatus = Literal[
+    "new",
+    "sample_created",
+    "contacted",
+    "followup_needed",
+    "replied",
+    "interested",
+    "not_interested",
+    "converted",
+    "lost",
+]
+
+
+class LeadRecord(BaseModel):
+    lead_id: str
+    client_name: str
+    client_email: str | None = None
+    url: str
+    normalized_domain: str
+    source: str = ""
+    status: LeadStatus = "new"
+    created_at: str = ""
+    last_contacted_at: str | None = None
+    next_followup_at: str | None = None
+    sample_report_path: str | None = None
+    health_score: int | None = None
+    health_label: str | None = None
+    notes: str = ""
+    tags: str = ""
+    proposal_path: str | None = None
+
+
+class PricingPlan(BaseModel):
+    plan_id: str
+    name: str
+    price_monthly: int | float
+    setup_fee: int | float = 0
+    sites_included: int = 1
+    description: str = ""
+    features: list[str] = Field(default_factory=list)
+
+
+class PricingConfig(BaseModel):
+    currency: str = "USD"
+    plans: dict[str, PricingPlan] = Field(default_factory=dict)
+
+
+class ProposalRecord(BaseModel):
+    lead_id: str
+    client_name: str
+    client_email: str | None = None
+    url: str
+    normalized_domain: str
+    health_score: int | None = None
+    health_label: str | None = None
+    sample_report_path: str | None = None
+    plan_id: str
+    plan_name: str
+    price_monthly: int | float
+    setup_fee: int | float = 0
+    currency: str = "USD"
+    created_at: str
+    proposal_md_path: str | None = None
+    proposal_html_path: str | None = None
+    proposal_reply_path: str | None = None
+
+
+class ClientPackageConfig(BaseModel):
+    lead_id: str
+    client_name: str
+    client_email: str
+    url: str
+    normalized_domain: str
+    plan_id: str
+    plan_name: str
+    price_monthly: int | float
+    setup_fee: int | float = 0
+    currency: str = "USD"
+    brand_name: str
+    brand_color: str = "#2563eb"
+    format: str = "html"
+    max_links: int = 30
+    timeout: float = 10
+    converted_at: str
+    clients_csv: str
+
+
+class ConvertClientResult(BaseModel):
+    lead_id: str
+    clients_csv_status: str
+    client_package_dir: Path
+    client_config_path: Path
+    onboarding_checklist_path: Path
+    welcome_message_path: Path
+    clients_csv_path: Path
+    weekly_job_path: Path | None = None
+    crm_notes: str = ""
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
 class LeadClientRecord(BaseModel):
     client_name: str
     client_email: str | None = None
@@ -293,6 +394,7 @@ class OnboardResult(BaseModel):
     report_result: ReportRunResult
     warnings: list[str] = Field(default_factory=list)
     clients_csv_status: str | None = None
+    crm_status: str | None = None
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -320,6 +422,29 @@ class ReportRunResult(BaseModel):
     medium_issues: int = 0
     low_issues: int = 0
     top_actions: str = ""
+
+
+PreflightStatus = Literal["pass", "warning", "fail", "skipped"]
+
+
+class PreflightCheckResult(BaseModel):
+    name: str
+    status: PreflightStatus
+    message: str
+    details: str | None = None
+    recommendation: str | None = None
+
+
+class PreflightReport(BaseModel):
+    started_at: str
+    finished_at: str
+    ready: bool
+    checks_total: int
+    passed: int
+    warnings: int
+    failed: int
+    skipped: int
+    results: list[PreflightCheckResult] = Field(default_factory=list)
 
 
 class SiteReport(BaseModel):

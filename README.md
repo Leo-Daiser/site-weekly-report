@@ -372,6 +372,152 @@ python -m app.onboard --client-name "Demo Client" --client-email demo@example.co
 
 Пример CSV лидов (справочно): `data/leads.example.csv`.
 
+Опционально добавить лида в CRM после онбординга:
+
+```bash
+python -m app.onboard --client-name "Demo Studio" --client-email demo@example.com --url https://example.com --brand-name "SEO Studio" --format html --add-to-crm true
+```
+
+## Lead CRM and outreach tracker (Фаза 9)
+
+Локальный **CLI-CRM** на CSV (`data/leads_crm.csv`) для учёта лидов и ручной продажи sample-report: кого нашли, кому отправили отчёт, кто ответил, кому нужен follow-up, кто стал клиентом. **Сообщения не отправляются автоматически** — только экспорт черновиков в markdown.
+
+Пример данных: `data/leads_crm.example.csv`. Экспорты: `crm_exports/` (не коммитятся).
+
+### Добавить лида
+
+```bash
+python -m app.crm add-lead --client-name "Demo Studio" --client-email demo@example.com --url https://example.com --source telegram
+```
+
+### Список и статусы
+
+```bash
+python -m app.crm list --status new
+
+python -m app.crm mark-status --lead-id lead_0001 --status contacted
+```
+
+При `contacted` выставляются `last_contacted_at` и `next_followup_at` (+3 дня).
+
+### Sample-report в CRM
+
+```bash
+python -m app.crm attach-sample --lead-id lead_0001 --sample-report-path leads/demo-client-example-com/sample_report.html --health-score 72 --health-label "Needs attention"
+```
+
+Или сразу через `app.onboard --add-to-crm true` (статус `sample_created`, путь и health score из отчёта).
+
+### Follow-ups и outreach
+
+```bash
+python -m app.crm followups --today --export true
+
+python -m app.crm export-outreach --status new --limit 10
+```
+
+Создаются файлы `crm_exports/followups_YYYY-MM-DD.md` и `crm_exports/outreach_YYYY-MM-DD.md` с suggested messages из шаблонов `templates/outreach_message.md.j2` и `templates/followup_message.md.j2`.
+
+Статусы: `new`, `sample_created`, `contacted`, `followup_needed`, `replied`, `interested`, `not_interested`, `converted`, `lost`.
+
+## Proposal generator (Фаза 10)
+
+`app.proposal` создаёт коммерческое предложение по `lead_id` из CRM: краткое резюме, состав еженедельного отчёта, тариф и цена, условия и готовый текст для ручной отправки. **Email не отправляется автоматически.**
+
+Тарифы: `data/pricing.example.json` (или встроенный default, если файл не найден).
+
+### Тарифы
+
+```bash
+python -m app.proposal list-plans
+
+python -m app.proposal list-plans --pricing-file data/pricing.example.json
+```
+
+### Создать proposal
+
+```bash
+python -m app.proposal create --lead-id lead_0001 --plan agency-lite
+
+python -m app.proposal create --lead-id lead_0001 --plan starter --format md
+```
+
+Параметры: `--crm-path`, `--pricing-file`, `--output-dir` (по умолчанию `proposals`), `--format` (`md`, `html`, `both`).
+
+### Результат
+
+Папка `proposals/<lead_id>_<slug>/`:
+
+| Файл | Описание |
+|------|----------|
+| `proposal.json` | Метаданные предложения |
+| `proposal.md` | Markdown-версия |
+| `proposal.html` | HTML-версия (self-contained) |
+| `proposal_reply.md` | Текст для ручного сообщения |
+
+В CRM обновляется поле `proposal_path` (старые CSV без колонки мигрируются при чтении).
+
+## Convert lead to client (Фаза 11)
+
+`app.convert_client` переводит лида из CRM в рабочего клиента: добавляет строку в `clients.csv`, ставит статус `converted`, сохраняет тариф и создаёт **client package** для онбординга. **Email не отправляется автоматически** — используйте `welcome_message.md` вручную.
+
+```bash
+python -m app.convert_client --lead-id lead_0001 --plan agency-lite
+
+python -m app.convert_client --lead-id lead_0001 --plan starter --clients-csv data/clients.local.csv
+
+python -m app.convert_client --lead-id lead_0001 --plan agency-lite --add-to-weekly-job true --weekly-job-file data/weekly_jobs.local.json
+```
+
+Требования к лиду: `client_name`, `url`, `client_email`. При дубликате в `clients.csv` (тот же URL + email) CLI выводит `already exists`, но CRM и client package всё равно обновляются.
+
+### Client package
+
+Папка `client_packages/<client_slug>/`:
+
+| Файл | Описание |
+|------|----------|
+| `client_config.json` | Метаданные клиента и тарифа |
+| `onboarding_checklist.md` | Чеклист перед первым weekly run |
+| `welcome_message.md` | Текст для ручной отправки клиенту |
+
+### Weekly job
+
+С `--add-to-weekly-job true` создаётся или обновляется JSON (например `data/weekly_jobs.local.json`): `clients_csv` указывает на ваш CSV, `create_outbox=true`, `send_email=false`. Список клиентов хранится только в CSV, не в job-файле.
+
+Пример локального clients CSV: `data/clients.local.example.csv`.
+
+## Preflight checker (Фаза 12)
+
+`app.preflight` проверяет готовность проекта перед отправкой отчётов клиентам. Итог: **READY** или **NOT READY**. Preflight **не отправляет email** и **не запускает рассылки** — только читает конфиги и окружение.
+
+```bash
+python -m app.preflight
+
+python -m app.preflight --check-pdf true
+
+python -m app.preflight --check-smtp true
+
+python -m app.preflight --format both
+
+python -m app.preflight --clients-csv data/clients.local.csv --weekly-job-file data/weekly_jobs.local.json --strict true
+```
+
+### Статусы
+
+| Статус | Значение |
+|--------|----------|
+| `pass` | Проверка пройдена |
+| `warning` | Замечание (не блокирует READY, кроме `--strict true`) |
+| `fail` | Блокирует READY |
+| `skipped` | Проверка отключена или недоступна |
+
+**READY** = нет `fail`; при `--strict true` любой `warning` тоже даёт NOT READY.
+
+Проверки: структура проекта, `.gitignore`, example-файлы, clients CSV, weekly job, pricing, branding, runtime-папки, опционально Playwright PDF и SMTP env, smoke imports, `git status` на артефакты.
+
+Markdown-отчёт: `preflight_reports/preflight_YYYY-MM-DD_HH-MM-SS.md` (при `--format md` или `both`).
+
 ## Следующие фазы (план)
 
 - Планировщик еженедельных отчётов
@@ -394,6 +540,12 @@ python -m unittest discover -s tests -v
 - `outbox/*` (кроме `outbox/.gitkeep`) — подготовленные письма
 - `run_logs/*` (кроме `run_logs/.gitkeep`) — JSON-логи weekly-запусков
 - `leads/*` (кроме `leads/.gitkeep`) — deliverable-папки лидов
+- `crm_exports/*` (кроме `crm_exports/.gitkeep`) — markdown follow-up / outreach
+- `data/leads_crm.csv` — локальная CRM-база лидов
+- `proposals/*` (кроме `proposals/.gitkeep`) — коммерческие предложения
+- `client_packages/*` (кроме `client_packages/.gitkeep`) — пакеты онбординга клиентов
+- `data/clients.csv`, `data/clients.local.csv`, `data/weekly_jobs.local.json` — локальные конфиги
+- `preflight_reports/*` (кроме `preflight_reports/.gitkeep`) — отчёты preflight
 - `__pycache__/`, `*.pyc` — кэш Python
 - `.venv/`, `venv/`, `.env` — виртуальное окружение и секреты
 
@@ -403,7 +555,11 @@ python -m unittest discover -s tests -v
 
 ```
 weekly-site-report/
-  app/           # main, batch, weekly, onboard, send_reports, pipeline, outbox
+  app/           # main, batch, weekly, onboard, crm, proposal, convert_client, preflight
+  preflight_reports/  # отчёты preflight (не коммитится)
+  proposals/     # коммерческие предложения (не коммитится)
+  client_packages/  # онбординг клиентов (не коммитится)
+  crm_exports/   # markdown outreach/follow-ups (не коммитится)
   leads/         # deliverable-папки лидов (не коммитится)
   run_logs/      # JSON-логи weekly (не коммитится)
   outbox/        # черновики писем (не коммитится)

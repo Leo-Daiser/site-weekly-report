@@ -10,7 +10,9 @@ reports/*
 
 data/*.sqlite
 data/*.db
+data/clients.csv
 data/clients.local.csv
+data/weekly_jobs.local.json
 !data/.gitkeep
 
 outbox/*
@@ -19,5 +21,18 @@ outbox/*
 run_logs/*
 !run_logs/.gitkeep
 
-leads/**
+leads/*
 !leads/.gitkeep
+
+crm_exports/*
+!crm_exports/.gitkeep
+data/leads_crm.csv
+
+proposals/*
+!proposals/.gitkeep
+
+client_packages/*
+!client_packages/.gitkeep
+
+preflight_reports/*
+!preflight_reports/.gitkeep
