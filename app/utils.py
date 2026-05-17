@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from urllib.parse import urljoin, urlparse, urlunparse
 
 from app.config import USER_AGENT
@@ -70,6 +71,18 @@ def domain_to_filename(url: str, timestamp: str | None = None) -> str:
 
 def report_pdf_filename(url: str, timestamp: str | None = None) -> str:
     return report_output_filenames(url, timestamp)[1]
+
+
+def resolve_project_path(path_str: str, project_root: Path) -> Path:
+    path = Path(path_str)
+    if not path.is_absolute():
+        path = project_root / path
+    return path
+
+
+def batch_run_dir_name(timestamp: str | None = None) -> str:
+    ts = timestamp or datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    return f"batch_{ts}"
 
 
 def default_headers() -> dict[str, str]:

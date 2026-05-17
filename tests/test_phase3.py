@@ -7,6 +7,7 @@ from app.branding import (
     DEFAULT_BRAND_COLOR,
     load_branding_config,
     merge_branding_config,
+    prepare_logo_data_uri,
     resolve_branding,
     validate_brand_color,
 )
@@ -53,6 +54,13 @@ class TestBrandingConfig(unittest.TestCase):
         self.assertEqual(merged.client_name, "Client")
         self.assertEqual(merged.brand_color, "#ff0000")
 
+    def test_webp_logo_shows_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            logo = Path(tmp) / "logo.webp"
+            logo.write_bytes(b"fake")
+            _, warnings = prepare_logo_data_uri(str(logo))
+            self.assertTrue(any("Unsupported logo format" in w for w in warnings))
+
     def test_missing_logo_does_not_crash(self) -> None:
         config, warnings = resolve_branding(
             BrandingConfig(logo_path="assets/missing.png"),
@@ -78,7 +86,7 @@ class TestReportBranding(unittest.TestCase):
 
     def _render(self, branding: BrandingConfig) -> str:
         out = self.root / "test.html"
-        render_report(self.report, self.template_dir, out, branding)
+        _, _warnings = render_report(self.report, self.template_dir, out, branding)
         return out.read_text(encoding="utf-8")
 
     def test_includes_brand_name(self) -> None:

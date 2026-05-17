@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import re
 from pathlib import Path
@@ -8,6 +9,13 @@ from app.models import BrandingConfig
 
 DEFAULT_BRAND_COLOR = "#2563eb"
 _HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+_LOGO_MIME: dict[str, str] = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".svg": "image/svg+xml",
+}
+_SUPPORTED_LOGO_EXTENSIONS = frozenset(_LOGO_MIME.keys())
 
 
 def validate_brand_color(color: str, warnings: list[str] | None = None) -> str:
@@ -40,6 +48,27 @@ def merge_branding_config(
     return BrandingConfig.model_validate(merged)
 
 
+def prepare_logo_data_uri(logo_path: str | None) -> tuple[str | None, list[str]]:
+    if not logo_path:
+        return None, []
+
+    path = Path(logo_path)
+    warnings: list[str] = []
+    suffix = path.suffix.lower()
+    if suffix not in _SUPPORTED_LOGO_EXTENSIONS:
+        warnings.append(f"Unsupported logo format: {suffix or '(none)'}")
+        return None, warnings
+
+    mime = _LOGO_MIME[suffix]
+    try:
+        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    except OSError as exc:
+        warnings.append(f"Could not read logo file: {exc}")
+        return None, warnings
+
+    return f"data:{mime};base64,{encoded}", warnings
+
+
 def resolve_branding(
     file_config: BrandingConfig,
     cli_overrides: dict[str, object],
@@ -57,6 +86,12 @@ def resolve_branding(
             warnings.append(f"Logo file not found: {config.logo_path}")
             config.logo_path = None
         else:
-            config.logo_path = str(logo.resolve())
+            resolved = str(logo.resolve())
+            suffix = logo.suffix.lower()
+            if suffix not in _SUPPORTED_LOGO_EXTENSIONS:
+                warnings.append(f"Unsupported logo format: {suffix or '(none)'}")
+                config.logo_path = None
+            else:
+                config.logo_path = resolved
 
     return config, warnings

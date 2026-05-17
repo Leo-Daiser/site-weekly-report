@@ -30,6 +30,15 @@ def _status_severity(old: int | None, new: int | None) -> DiffSeverity:
     return "neutral"
 
 
+def _is_significant_response_time_change(old: float, new: float) -> bool:
+    diff_abs = abs(new - old)
+    if diff_abs < 100:
+        return False
+    baseline = max(old, new, 1.0)
+    diff_rel = diff_abs / baseline
+    return diff_rel >= 0.30
+
+
 def _response_time_severity(old: float, new: float) -> DiffSeverity:
     if new > old * 1.5:
         return "warning"
@@ -75,7 +84,11 @@ def build_report_diff(previous: StoredCheck | None, current: SiteReport) -> Repo
 
     old_rt = previous.response_time_ms
     new_rt = cur["response_time_ms"]
-    if old_rt is not None and new_rt is not None and old_rt != new_rt:
+    if (
+        old_rt is not None
+        and new_rt is not None
+        and _is_significant_response_time_change(old_rt, new_rt)
+    ):
         if new_rt > old_rt:
             verb = "выросло"
         else:

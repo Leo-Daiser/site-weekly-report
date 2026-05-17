@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import base64
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from app.branding import prepare_logo_data_uri
 from app.models import BrandingConfig, SiteReport
 
 WARNING_TO_RECOMMENDATION: dict[str, str] = {
@@ -24,14 +24,6 @@ WARNING_TO_RECOMMENDATION: dict[str, str] = {
 RECOMMENDATION_KEYWORDS = [
     ("битая внутренняя ссылка", "Исправить битые внутренние ссылки."),
 ]
-
-_LOGO_MIME: dict[str, str] = {
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".svg": "image/svg+xml",
-}
-
 
 def build_recommendations(report: SiteReport) -> list[str]:
     recommendations: list[str] = []
@@ -105,33 +97,13 @@ def status_class(ok: bool, warning: bool = False) -> str:
     return "status-error"
 
 
-def logo_to_data_uri(logo_path: str | None) -> tuple[str | None, list[str]]:
-    if not logo_path:
-        return None, []
-
-    path = Path(logo_path)
-    warnings: list[str] = []
-    mime = _LOGO_MIME.get(path.suffix.lower())
-    if not mime:
-        warnings.append(f"Unsupported logo format: {path.suffix}")
-        return None, warnings
-
-    try:
-        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
-    except OSError as exc:
-        warnings.append(f"Could not read logo file: {exc}")
-        return None, warnings
-
-    return f"data:{mime};base64,{encoded}", warnings
-
-
 def render_report(
     report: SiteReport,
     template_dir: Path,
     output_path: Path,
     branding: BrandingConfig,
-) -> Path:
-    logo_data_uri, logo_warnings = logo_to_data_uri(branding.logo_path)
+) -> tuple[Path, list[str]]:
+    logo_data_uri, logo_warnings = prepare_logo_data_uri(branding.logo_path)
 
     env = Environment(
         loader=FileSystemLoader(str(template_dir)),
@@ -146,4 +118,4 @@ def render_report(
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")
-    return output_path
+    return output_path, logo_warnings

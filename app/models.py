@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -115,6 +116,123 @@ class BrandingConfig(BaseModel):
 
 
 ReportFormat = Literal["html", "pdf", "both"]
+
+
+class SMTPConfig(BaseModel):
+    host: str
+    port: int = 587
+    username: str | None = None
+    password: str | None = None
+    from_email: str
+    from_name: str | None = None
+    use_tls: bool = True
+
+
+class EmailManifestEntry(BaseModel):
+    client_name: str = ""
+    client_email: str = ""
+    brand_name: str = ""
+    url: str = ""
+    subject: str = ""
+    text_path: str = ""
+    html_path: str = ""
+    report_html_path: str = ""
+    report_pdf_path: str = ""
+    status: str = "prepared"
+    error: str = ""
+
+
+class OutboxResult(BaseModel):
+    outbox_dir: Path
+    manifest_path: Path
+    prepared_count: int = 0
+    skipped_count: int = 0
+    sent_count: int = 0
+    failed_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class BatchRunResult(BaseModel):
+    batch_dir: Path
+    summary_csv: Path
+    summary_html: Path
+    total: int
+    successful: int
+    failed: int
+    results: list[ReportRunResult] = Field(default_factory=list)
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class EmailRunResult(BaseModel):
+    outbox_dir: Path
+    emails_prepared: int = 0
+    emails_sent: int = 0
+    emails_failed: int = 0
+    skipped_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+WeeklyMode = Literal["dry-run", "generate", "outbox", "send"]
+
+
+class WeeklyJobConfig(BaseModel):
+    job_name: str
+    clients_csv: str
+    output_dir: str = "reports"
+    outbox_dir: str = "outbox"
+    db_path: str = "data/checks.sqlite"
+    branding_file: str | None = "branding/default.json"
+    format: ReportFormat = "html"
+    max_links: int = 30
+    timeout: float = 10
+    create_outbox: bool = True
+    send_email: bool = False
+    continue_on_error: bool = True
+    limit: int | None = None
+
+
+class WeeklyRunLog(BaseModel):
+    run_id: str
+    job_name: str
+    mode: WeeklyMode
+    started_at: str
+    finished_at: str | None = None
+    success: bool = False
+    clients_csv: str | None = None
+    batch_dir: str | None = None
+    outbox_dir: str | None = None
+    summary_csv: str | None = None
+    summary_html: str | None = None
+    total: int = 0
+    successful: int = 0
+    failed: int = 0
+    emails_prepared: int = 0
+    emails_sent: int = 0
+    emails_failed: int = 0
+    error: str | None = None
+
+
+class ReportRunResult(BaseModel):
+    url: str
+    normalized_domain: str | None = None
+    success: bool = False
+    scan_ok: bool = False
+    error: str | None = None
+    html_path: str | None = None
+    pdf_path: str | None = None
+    status_code: int | None = None
+    warnings_count: int = 0
+    broken_links_count: int = 0
+    changes_count: int = 0
+    previous_check_found: bool = False
+    brand_name: str | None = None
+    client_name: str | None = None
+    branding_warnings: list[str] = Field(default_factory=list)
 
 
 class SiteReport(BaseModel):

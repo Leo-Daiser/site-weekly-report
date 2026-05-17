@@ -1,0 +1,15 @@
+{
+  "job_name": "default_weekly_reports",
+  "clients_csv": "data/clients.example.csv",
+  "output_dir": "reports",
+  "outbox_dir": "outbox",
+  "db_path": "data/checks.sqlite",
+  "branding_file": "branding/default.json",
+  "format": "html",
+  "max_links": 30,
+  "timeout": 10,
+  "create_outbox": true,
+  "send_email": false,
+  "continue_on_error": true,
+  "limit": null
+}

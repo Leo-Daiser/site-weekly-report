@@ -81,11 +81,14 @@ class TestStorage(unittest.TestCase):
 
     def test_creates_site_checks_table(self) -> None:
         init_db(self.db_path)
-        with sqlite3.connect(self.db_path) as conn:
+        conn = sqlite3.connect(self.db_path)
+        try:
             row = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='site_checks'"
             ).fetchone()
-        self.assertIsNotNone(row)
+            self.assertIsNotNone(row)
+        finally:
+            conn.close()
 
     def test_saves_and_fetches_latest_by_domain(self) -> None:
         report = SiteReport(
@@ -104,6 +107,7 @@ class TestStorage(unittest.TestCase):
         self.assertEqual(latest.normalized_domain, "example.com")
         self.assertEqual(latest.status_code, 200)
         self.assertIn("source_url", latest.raw_json or "")
+        gc.collect()
 
 
 class TestDiff(unittest.TestCase):
@@ -154,6 +158,31 @@ class TestDiff(unittest.TestCase):
         self.assertEqual(len(status_changes), 1)
         self.assertEqual(status_changes[0].severity, "critical")
         self.assertIn("200 → 500", status_changes[0].message)
+
+    def _rt_changes(self, old_ms: float, new_ms: float) -> list:
+        previous = _stored(response_time_ms=old_ms)
+        current = SAMPLE_REPORT.model_copy(
+            update={
+                "page": SAMPLE_REPORT.page.model_copy(
+                    update={"response_time_ms": new_ms}
+                )
+            }
+        )
+        diff = build_report_diff(previous, current)
+        return [c for c in diff.changes if "Время ответа" in c.message]
+
+    def test_response_time_small_delta_not_reported(self) -> None:
+        self.assertEqual(self._rt_changes(420, 450), [])
+
+    def test_response_time_large_increase_reported(self) -> None:
+        changes = self._rt_changes(420, 620)
+        self.assertEqual(len(changes), 1)
+        self.assertIn("420", changes[0].message)
+        self.assertIn("620", changes[0].message)
+
+    def test_response_time_large_decrease_reported(self) -> None:
+        changes = self._rt_changes(1000, 650)
+        self.assertEqual(len(changes), 1)
 
 
 if __name__ == "__main__":

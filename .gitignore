@@ -5,10 +5,15 @@ __pycache__/
 .venv/
 venv/
 
-reports/*.html
-reports/*.pdf
+reports/*
 !reports/.gitkeep
 
 data/*.sqlite
 data/*.db
 !data/.gitkeep
+
+outbox/*
+!outbox/.gitkeep
+
+run_logs/*
+!run_logs/.gitkeep

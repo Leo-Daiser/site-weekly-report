@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Weekly report</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1d26; line-height: 1.5; margin: 0; padding: 1rem; }
+    .wrap { max-width: 560px; margin: 0 auto; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
+    th, td { text-align: left; padding: 0.5rem 0.65rem; border-bottom: 1px solid #e2e6ef; }
+    th { background: #f4f6f9; color: #5c6370; font-size: 0.8rem; text-transform: uppercase; }
+    .footer { margin-top: 1.5rem; color: #5c6370; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p>Здравствуйте.</p>
+    <p>Подготовлен еженедельный отчёт по сайту: <strong>{{ url }}</strong></p>
+    <table>
+      <tr><th>Показатель</th><th>Значение</th></tr>
+      <tr><td>HTTP status</td><td>{{ status_code }}</td></tr>
+      <tr><td>Предупреждений</td><td>{{ warnings_count }}</td></tr>
+      <tr><td>Битых ссылок</td><td>{{ broken_links_count }}</td></tr>
+      <tr><td>Изменений с прошлой проверки</td><td>{{ changes_count }}</td></tr>
+    </table>
+    <p>Отчёт приложен к письму.</p>
+    <p class="footer">С уважением,<br>{{ brand_name }}</p>
+  </div>
+</body>
+</html>
