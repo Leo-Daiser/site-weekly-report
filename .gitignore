@@ -36,3 +36,6 @@ client_packages/*
 
 preflight_reports/*
 !preflight_reports/.gitkeep
+
+sales_pack/*
+!sales_pack/.gitkeep

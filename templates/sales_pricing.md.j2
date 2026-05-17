@@ -1,0 +1,24 @@
+# {{ product_name }} — Pricing
+
+Currency: {{ currency }}
+
+## Plans
+
+{% for plan in plans %}
+### {{ plan.name }} ({{ plan.id }})
+
+- Price: {{ currency }} {{ plan.price }}/month
+- {{ plan.description }}
+
+{% endfor %}
+
+## Recommended starting offer
+
+Agency Lite — {{ currency }} 79/month for up to 5 websites + optional setup fee.
+
+This plan fits freelancers and small studios that manage a handful of client sites and want white-label weekly reports without building a custom monitoring stack.
+
+## Notes
+
+- Pricing is a starting point for your agency offer; adjust setup fees and scope per client.
+- Reports are generated locally; you control delivery and review before sending.

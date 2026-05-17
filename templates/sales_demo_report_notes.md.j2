@@ -1,0 +1,29 @@
+# {{ product_name }} — Demo report notes
+
+## How to prepare a demo report
+
+1. **Choose a site** — ideally the prospect's site or a neutral demo (e.g. example.com for structure only).
+2. **Run onboard** to create a lead folder and sample report:
+
+```bash
+python -m app.onboard --client-name "Demo Client" --client-email demo@example.com --url https://example.com --brand-name "{{ product_name }}" --format html
+```
+
+3. **Open** `leads/<slug>/sample_report.html` (or path from onboard output).
+4. **Review** Site Health Score, warnings, broken links, and Top 3 actions — fix anything misleading before sharing.
+5. **Do not send automatically** — email is never sent by the tool; you deliver manually.
+6. **If there is interest**, attach or link a **proposal** (`python -m app.proposal create --lead-id ...`).
+
+## Reference demo path from config
+
+Configured demo report path: `{{ demo_report_path or "not set" }}`
+
+If you copy a report to that path, you can link it consistently in sales conversations.
+
+## Checklist before sharing
+
+- [ ] Brand name and colors match your agency
+- [ ] Client name on the report is correct (or clearly marked as sample)
+- [ ] Health score and actions make sense for the site
+- [ ] You have a short cover message (see outreach_messages.md)
+- [ ] Proposal ready if the conversation moves to pricing

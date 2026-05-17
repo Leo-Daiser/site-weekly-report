@@ -518,6 +518,37 @@ python -m app.preflight --clients-csv data/clients.local.csv --weekly-job-file d
 
 Markdown-отчёт: `preflight_reports/preflight_YYYY-MM-DD_HH-MM-SS.md` (при `--format md` или `both`).
 
+## Sales pack (Фаза 13)
+
+`app.sales_pack` генерирует локальные **sales materials** для первых продаж: landing copy, pricing, FAQ, короткие питчи, outreach-сообщения, ответы на возражения и заметки по demo-report. Без SaaS, без автоматической отправки email.
+
+Конфиг: `data/sales_pack.example.json`
+
+```bash
+python -m app.sales_pack generate
+
+python -m app.sales_pack generate --format both
+
+python -m app.sales_pack generate --config data/sales_pack.example.json --output-dir sales_pack
+```
+
+### Результат
+
+Папка `sales_pack/generated_YYYY-MM-DD_HH-MM-SS/`:
+
+| Файл | Назначение |
+|------|------------|
+| `landing_copy.md` | Заголовки и ценностное предложение |
+| `pricing.md` | Тарифы из конфига |
+| `faq.md` | Честные ответы на частые вопросы |
+| `short_pitch.md` | 1 / 3 предложения / 30 секунд |
+| `outreach_messages.md` | Шаблоны холодных и follow-up сообщений |
+| `objections.md` | Возражения и ответы |
+| `demo_report_notes.md` | Как подготовить demo через `app.onboard` |
+| `sales_pack_index.md` | Оглавление пакета |
+
+Материалы редактируйте вручную перед отправкой клиентам. Для demo используйте `app.onboard` и при необходимости `app.proposal`.
+
 ## Следующие фазы (план)
 
 - Планировщик еженедельных отчётов
@@ -546,6 +577,7 @@ python -m unittest discover -s tests -v
 - `client_packages/*` (кроме `client_packages/.gitkeep`) — пакеты онбординга клиентов
 - `data/clients.csv`, `data/clients.local.csv`, `data/weekly_jobs.local.json` — локальные конфиги
 - `preflight_reports/*` (кроме `preflight_reports/.gitkeep`) — отчёты preflight
+- `sales_pack/*` (кроме `sales_pack/.gitkeep`) — сгенерированные sales materials
 - `__pycache__/`, `*.pyc` — кэш Python
 - `.venv/`, `venv/`, `.env` — виртуальное окружение и секреты
 
@@ -557,6 +589,7 @@ python -m unittest discover -s tests -v
 weekly-site-report/
   app/           # main, batch, weekly, onboard, crm, proposal, convert_client, preflight
   preflight_reports/  # отчёты preflight (не коммитится)
+  sales_pack/         # sales materials (не коммитится)
   proposals/     # коммерческие предложения (не коммитится)
   client_packages/  # онбординг клиентов (не коммитится)
   crm_exports/   # markdown outreach/follow-ups (не коммитится)

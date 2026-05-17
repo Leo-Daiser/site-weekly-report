@@ -1,0 +1,36 @@
+{
+  "product_name": "WebReport Weekly",
+  "target_audience": "SEO freelancers, small web studios, and marketers",
+  "positioning": "White-label weekly website reports for agencies and freelancers",
+  "primary_offer": "Weekly site health report with prioritized actions",
+  "currency": "USD",
+  "plans": [
+    {
+      "id": "starter",
+      "name": "Starter",
+      "price": 29,
+      "description": "For one website"
+    },
+    {
+      "id": "agency-lite",
+      "name": "Agency Lite",
+      "price": 79,
+      "description": "For up to 5 websites"
+    },
+    {
+      "id": "agency",
+      "name": "Agency",
+      "price": 149,
+      "description": "For up to 15 websites"
+    }
+  ],
+  "main_benefits": [
+    "Ready-to-send weekly reports",
+    "White-label format for agencies",
+    "Site Health Score",
+    "Top 3 prioritized actions",
+    "Change tracking vs previous report",
+    "No dashboard required"
+  ],
+  "demo_report_path": "reports/demo_report.html"
+}
