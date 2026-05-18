@@ -209,7 +209,9 @@
       <nav class="nav-links" aria-label="Main navigation">
         <a href="#report">Report</a>
         <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
         <a href="#start">Start</a>
+        <a href="/client/login">Client login</a>
       </nav>
     </div>
   </header>
@@ -219,18 +221,20 @@
       <div class="shell hero-grid">
         <div>
           <p class="eyebrow">{{ positioning }}</p>
-          <h1>White-label weekly website reports your clients can actually read.</h1>
+          <h1>Weekly website reports your clients can actually read.</h1>
           <p class="lead">
-            {{ primary_offer }} for {{ target_audience }}. Each report gives site status,
-            basic SEO, broken links, form checks, weekly changes, a health score, and the next 3 actions.
+            {{ primary_offer }} for {{ target_audience }}. This is a reporting service, not another dashboard:
+            every week you receive a client-ready report with site status, basic SEO, broken links,
+            form checks, weekly changes, a health score, and the next 3 actions.
           </p>
           <div class="actions">
             <a class="button primary" href="#pricing">Choose a plan</a>
             {% if demo_report_path %}
             <a class="button secondary" href="{{ demo_report_path }}">View sample report</a>
             {% endif %}
+            <a class="button secondary" href="/client/login">Client login</a>
           </div>
-          <p class="proof">Built for service businesses that need client-ready proof of work every week.</p>
+          <p class="proof">Built for service businesses that need client-ready proof of work every week without preparing reports from scratch.</p>
         </div>
 
         <div class="report-preview" id="report" aria-label="Sample report preview">
@@ -256,7 +260,7 @@
     <section>
       <div class="shell">
         <h2>What you get every week</h2>
-        <p class="section-copy">A client-ready report under your brand, generated from repeatable checks and designed to be sent as-is or lightly edited.</p>
+        <p class="section-copy">A client-ready report under your brand, generated from repeatable checks and designed to be sent as-is or lightly reviewed before delivery.</p>
         <div class="benefits">
           {% for benefit in main_benefits %}
           <div class="benefit">
@@ -271,7 +275,7 @@
     <section class="alt" id="pricing">
       <div class="shell">
         <h2>Pricing</h2>
-        <p class="section-copy">Start with a sample report, then subscribe when you want reports prepared every week.</p>
+        <p class="section-copy">Start with a sample report, then subscribe when you want reports prepared every week for your client sites.</p>
         <div class="plans">
           {% for plan in plans %}
           <article class="plan{% if plan.id == 'agency-lite' %} featured{% endif %}">
@@ -281,12 +285,12 @@
             {% if plan.checkout_url %}
             <a class="button primary" href="{{ plan.checkout_url }}">Subscribe</a>
             {% else %}
-            <a class="button secondary" href="mailto:{{ contact_email }}?subject={{ plan.name | urlencode }}%20plan%20for%20{{ product_name | urlencode }}">Request this plan</a>
+            <a class="button secondary" href="{{ signup_url }}?plan={{ plan.id | urlencode }}">Start setup</a>
             {% endif %}
           </article>
           {% endfor %}
         </div>
-        <p class="note">Replace checkout URLs in the config with Stripe or PayPal payment links when you are ready to accept self-serve payments.</p>
+        <p class="note">Setup fee can be added manually for onboarding, branding, and the first reviewed report. Without checkout URLs, plan buttons open the setup form.</p>
       </div>
     </section>
 
@@ -316,12 +320,44 @@
             <p>Run a one-off report for the prospect site and send the result manually.</p>
           </div>
           <div class="step">
-            <h3>Plan selected</h3>
-            <p>The client chooses a website count and pays through a checkout link.</p>
+            <h3>Checkout and setup</h3>
+            <p>The client chooses a website count, pays through checkout, and submits site and branding details.</p>
           </div>
           <div class="step">
-            <h3>Weekly delivery</h3>
-            <p>The site is added to the weekly job and reports are prepared on schedule.</p>
+            <h3>Portal and delivery</h3>
+            <p>The client can log in to view sites, reports, billing status, and request setting changes while reports are prepared weekly.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="faq">
+      <div class="shell">
+        <h2>FAQ</h2>
+        <div class="benefits">
+          <div class="benefit">
+            <strong>Is this a full SEO audit?</strong>
+            <p>No. It is a weekly monitoring and reporting service for availability, SEO basics, links, forms, changes, and prioritized actions.</p>
+          </div>
+          <div class="benefit">
+            <strong>Do clients need another dashboard?</strong>
+            <p>No. Reports are ready to send. The client portal is for viewing reports, sites, billing status, and requesting small setting changes.</p>
+          </div>
+          <div class="benefit">
+            <strong>Can this run under my brand?</strong>
+            <p>Yes. Reports support brand name, color, logo, footer text, and client-specific delivery settings.</p>
+          </div>
+          <div class="benefit">
+            <strong>Does it replace Ahrefs or Search Console?</strong>
+            <p>No. It complements those tools with a client-readable weekly operational report.</p>
+          </div>
+          <div class="benefit">
+            <strong>Can I review before sending?</strong>
+            <p>Yes. The operator workflow prepares reports and outbox drafts first; sending can remain manual.</p>
+          </div>
+          <div class="benefit">
+            <strong>What happens if payment fails?</strong>
+            <p>Payment status is tracked and inactive clients can be skipped from weekly delivery.</p>
           </div>
         </div>
       </div>
@@ -330,7 +366,7 @@
 
   <footer>
     <div class="shell">
-      {{ product_name }} - generated {{ generated_at }}.
+      {{ product_name }} - generated {{ generated_at }}. Contact: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.
     </div>
   </footer>
 </body>

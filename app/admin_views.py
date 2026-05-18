@@ -57,6 +57,7 @@ def layout(
         else (
             '<a href="/admin/signups">Signups</a>'
             '<a href="/admin/clients">Clients</a>'
+            '<a href="/admin/client-requests">Client requests</a>'
             '<a href="/admin/runs">Runs</a>'
             '<a href="/admin/outbox">Outbox</a>'
         )
@@ -119,7 +120,13 @@ def render_admin_login(message: str = "") -> str:
     )
 
 
-def render_public_signup(plan_id: str = "", status: str = "", message: str = "") -> str:
+def render_public_signup(
+    plan_id: str = "",
+    status: str = "",
+    message: str = "",
+    session_id: str = "",
+    customer_email: str = "",
+) -> str:
     selected = {
         "starter": " selected" if plan_id == "starter" else "",
         "agency-lite": " selected" if plan_id == "agency-lite" else "",
@@ -130,8 +137,9 @@ def render_public_signup(plan_id: str = "", status: str = "", message: str = "")
 <p class="muted">Submit the website and branding details needed to start weekly reports.</p>
 {flash_html(status, message)}
 <form method="post" action="/signup">
+  {hidden("session_id", session_id) if session_id else ""}
   <label>Agency name<input name="agency_name" required></label>
-  <label>Billing email<input name="billing_email" type="email" required></label>
+  <label>Billing email<input name="billing_email" type="email" value="{h(customer_email)}" required></label>
   <label>Report recipient email<input name="report_recipient_email" type="email" required></label>
   <label>Plan<select name="plan_id" required>
     <option value="starter"{selected["starter"]}>Starter</option>
@@ -217,6 +225,11 @@ def render_client_detail(row: AdminClientRow, latest_run: dict[str, object] | No
         f"<div class='card'><h3>Artifacts</h3><p>{artifact_link(row.latest_report_path, 'Open latest report')}</p><p>{artifact_link(row.client_package_path, 'Open client package')}</p></div>"
         f"<div class='card'><h3>Latest summary</h3><p>{h(row.latest_summary)}</p></div>"
         "</div>"
+        "<h2>Client portal</h2>"
+        "<form method='post' action='/admin/clients/send-login-link'>"
+        f"{hidden('email', row.client_email)}"
+        "<button type='submit'>Create login link</button>"
+        "</form>"
         "<h2>Latest run</h2>"
         f"{run_html}"
     )
@@ -225,13 +238,23 @@ def render_client_detail(row: AdminClientRow, latest_run: dict[str, object] | No
 def render_signups_page(signups: list[SignupRecord]) -> str:
     rows = []
     for signup in signups:
+        actions = (
+            f"<form class='inline' method='post' action='/admin/signups/{h(signup.signup_id)}/approve'><button>Approve</button></form>"
+            f"<form class='inline' method='post' action='/admin/signups/{h(signup.signup_id)}/needs-review'><button>Needs review</button></form>"
+            f"<form class='inline' method='post' action='/admin/signups/{h(signup.signup_id)}/reject'><button>Reject</button></form>"
+        )
         rows.append(
-            f"<tr><td>{h(signup.signup_id)}</td><td>{h(signup.agency_name)}</td><td>{h(signup.plan_id)}</td>"
-            f"<td>{badge(signup.status)}</td><td><code>{h(signup.website_urls)}</code></td>"
-            f"<td><form class='inline' method='post' action='/admin/signups/{h(signup.signup_id)}/approve'><button>Approve</button></form></td></tr>"
+            f"<tr><td>{h(signup.signup_id)}<br><span class='muted'>{h(signup.created_at)}</span></td>"
+            f"<td>{h(signup.agency_name)}<br><span class='muted'>{h(signup.billing_email)}</span></td>"
+            f"<td>{h(signup.plan_id)}</td>"
+            f"<td>{badge(signup.status)}</td>"
+            f"<td>{badge(signup.payment_status)}<br><span class='muted'>{h(signup.payment_notes)}</span></td>"
+            f"<td><code>{h(signup.website_urls)}</code><br><span class='muted'>{h(signup.notes)}</span></td>"
+            f"<td>{actions}</td></tr>"
         )
     return f"""
 <h1>Pending signups</h1>
+<form class="inline" method="post" action="/admin/signups/reconcile-payments"><button type="submit">Reconcile payments</button></form>
 <form method="post" action="/admin/signups">
   <label>Agency name<input name="agency_name" required></label>
   <label>Billing email<input name="billing_email" type="email" required></label>
@@ -242,7 +265,7 @@ def render_signups_page(signups: list[SignupRecord]) -> str:
   <label>Brand color<input name="brand_color" value="#2563eb"></label>
   <button type="submit">Create signup</button>
 </form>
-<table><tr><th>ID</th><th>Agency</th><th>Plan</th><th>Status</th><th>Sites</th><th>Action</th></tr>{''.join(rows)}</table>
+<table><tr><th>ID</th><th>Agency / billing</th><th>Plan</th><th>Status</th><th>Payment</th><th>Sites / notes</th><th>Action</th></tr>{''.join(rows)}</table>
 """
 
 

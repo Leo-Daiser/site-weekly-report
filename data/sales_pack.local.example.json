@@ -2,9 +2,10 @@
   "product_name": "WebReport Weekly",
   "target_audience": "SEO freelancers, small web studios, and marketers",
   "positioning": "White-label weekly website reports for agencies and freelancers",
-  "primary_offer": "Weekly site health report with prioritized actions",
+  "primary_offer": "Weekly white-label site health report with prioritized actions",
   "currency": "USD",
   "contact_email": "hello@yourdomain.com",
+  "signup_url": "https://yourdomain.com/signup",
   "plans": [
     {
       "id": "starter",
@@ -29,12 +30,12 @@
     }
   ],
   "main_benefits": [
-    "Ready-to-send weekly reports",
+    "Ready-to-send weekly client reports",
     "White-label format for agencies",
     "Site Health Score",
-    "Top 3 prioritized actions",
+    "Top 3 owner-assigned actions",
     "Change tracking vs previous report",
-    "No dashboard required"
+    "No client dashboard required"
   ],
   "demo_report_path": "sales_pack/demo_reports/medium_site_demo.html",
   "demo_reports": [

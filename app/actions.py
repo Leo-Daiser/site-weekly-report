@@ -39,7 +39,7 @@ def build_prioritized_actions(
         return [
             PrioritizedAction(
                 title="No urgent actions required",
-                reason="Критичных проблем не обнаружено.",
+                reason="No critical or high-priority issues were found in this weekly check.",
                 severity="info",
                 category="technical",
                 estimated_impact="low",
@@ -76,7 +76,7 @@ def build_prioritized_actions(
         return [
             PrioritizedAction(
                 title="No urgent actions required",
-                reason="Критичных проблем не обнаружено.",
+                reason="No critical or high-priority issues were found in this weekly check.",
                 severity="info",
                 category="technical",
                 estimated_impact="low",

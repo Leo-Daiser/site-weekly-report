@@ -9,9 +9,12 @@ from rich.console import Console
 from app.branding import BrandingConfig
 from app.models import (
     CrawledPageResult,
+    DiffChange,
+    FormCheckResult,
     LinkCheckResult,
     LinkItem,
     PageFetchResult,
+    ReportDiff,
     ResourceCheckResult,
     SeoCheckResult,
     SiteReport,
@@ -54,10 +57,22 @@ def _base_report(name: str, url: str, status: int, response_ms: float) -> SiteRe
         ),
         robots=ResourceCheckResult(resource_type="robots.txt", url=f"{url}/robots.txt", exists=True, status_code=200),
         sitemap=ResourceCheckResult(resource_type="sitemap.xml", url=f"{url}/sitemap.xml", exists=True, status_code=200),
-        links=LinkCheckResult(internal_links=[f"{url}/about", f"{url}/contact"], external_links=[]),
+        forms=[
+            FormCheckResult(
+                method="POST",
+                action="/contact",
+                input_count=4,
+                has_submit=True,
+            )
+        ],
+        links=LinkCheckResult(
+            internal_links=[f"{url}/about", f"{url}/services", f"{url}/contact"],
+            external_links=["https://www.linkedin.com/company/demo"],
+        ),
         crawled_pages=[
             CrawledPageResult(url=url, final_url=url, status_code=status, response_time_ms=response_ms, title=f"{name} - Website Services", h1_count=1),
             CrawledPageResult(url=f"{url}/about", final_url=f"{url}/about", status_code=200, response_time_ms=response_ms + 40, title=f"About {name}", h1_count=1),
+            CrawledPageResult(url=f"{url}/services", final_url=f"{url}/services", status_code=200, response_time_ms=response_ms + 55, title=f"{name} Services", h1_count=1),
         ],
         technical=TechnicalCheckResult(
             https_enabled=True,
@@ -66,6 +81,12 @@ def _base_report(name: str, url: str, status: int, response_ms: float) -> SiteRe
             ssl_expires_at="2026-12-31",
             ssl_days_remaining=240,
             robots_blocks_homepage=False,
+        ),
+        diff=ReportDiff(
+            has_previous=True,
+            previous_created_at="2025-12-25 09:00",
+            changes=[],
+            no_changes_message="No meaningful regressions were detected since the previous weekly report.",
         ),
     )
 
@@ -78,9 +99,18 @@ def build_demo_report(kind: str) -> SiteReport:
         report.seo.meta_description = None
         report.seo.meta_description_length = 0
         report.seo.warnings.append("description отсутствует")
+        report.links.broken_count = 1
+        report.links.checked_links = [
+            LinkItem(url="https://medium-demo.example/about", status_code=200, is_broken=False),
+            LinkItem(url="https://medium-demo.example/old-offer", status_code=404, is_broken=True),
+        ]
         report.technical.noindex_pages = ["https://medium-demo.example/about"]
         report.technical.warnings.append("Найдены страницы с noindex: 1")
         report.crawled_pages[1].noindex = True
+        report.diff.changes = [
+            DiffChange(message="One internal link became broken since the previous check.", severity="warning"),
+            DiffChange(message="A noindex tag was detected on the About page.", severity="warning"),
+        ]
     elif kind == "problem":
         report = _base_report("Problem Agency", "http://problem-demo.example", 500, 4200)
         report.page.status_code = 500
@@ -113,6 +143,13 @@ def build_demo_report(kind: str) -> SiteReport:
         )
         report.crawled_pages[0].status_code = 500
         report.crawled_pages[0].broken_assets_count = 4
+        report.crawled_pages[1].status_code = 404
+        report.crawled_pages[1].error = "Page not found"
+        report.diff.changes = [
+            DiffChange(message="Homepage status changed from 200 to 500.", severity="critical"),
+            DiffChange(message="Broken internal links increased from 0 to 3.", severity="warning"),
+            DiffChange(message="robots.txt and sitemap.xml are no longer available.", severity="warning"),
+        ]
     else:
         raise ValueError(f"Unknown demo kind: {kind}")
 

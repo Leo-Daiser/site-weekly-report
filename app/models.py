@@ -318,7 +318,7 @@ class SubscriptionRecord(BaseModel):
     updated_at: str = ""
 
 
-SignupStatus = Literal["pending", "approved", "needs_review", "rejected"]
+SignupStatus = Literal["pending_payment", "pending", "approved", "needs_review", "rejected"]
 
 
 class SignupRecord(BaseModel):
@@ -332,6 +332,9 @@ class SignupRecord(BaseModel):
     brand_color: str = "#2563eb"
     logo_url: str | None = None
     status: SignupStatus = "pending"
+    stripe_checkout_session_id: str | None = None
+    payment_status: PaymentStatus = "pending_payment"
+    payment_notes: str = ""
     created_at: str = ""
     approved_at: str | None = None
     notes: str = ""

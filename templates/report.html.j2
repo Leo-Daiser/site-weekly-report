@@ -181,6 +181,17 @@
       background: color-mix(in srgb, var(--brand) 12%, white);
       color: var(--brand);
     }
+    .summary-note {
+      margin-top: 1rem;
+      color: var(--text);
+      font-size: 1rem;
+      max-width: 760px;
+    }
+    .deliverable-note {
+      margin-top: 0.75rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
     .severity-critical { border-left: 4px solid var(--err); }
     .severity-high { border-left: 4px solid #c2410c; }
     .severity-medium { border-left: 4px solid var(--warn); }
@@ -225,7 +236,8 @@
       {% endif %}
       <p class="brand-meta">
         Site: <a href="{{ report.source_url }}" target="_blank" rel="noopener">{{ report.source_url }}</a><br>
-        Generated: {{ report.scanned_at.strftime("%Y-%m-%d %H:%M") }}
+        Generated: {{ report.scanned_at.strftime("%Y-%m-%d %H:%M") }}<br>
+        Scope: availability, basic SEO, internal links, forms, technical checks, and week-over-week changes
       </p>
     </header>
 
@@ -236,6 +248,8 @@
       <div class="card health-hero">
         <p class="health-score-big">Site Health Score: {{ report.health_score.score }}/100</p>
         <span class="health-label-badge">{{ report.health_score.label }}</span>
+        <p class="summary-note">{{ health_summary_text(report.health_score.score) }}</p>
+        <p class="deliverable-note">This report is designed as a weekly client update: review the top actions first, then use the detailed sections as supporting evidence.</p>
         <div class="grid-2" style="margin-top: 1rem;">
           <div class="stat">
             <div class="stat-label">Critical issues</div>
@@ -283,7 +297,8 @@
           <li class="action-item">
             <strong>{{ loop.index }}. {{ action.title }}</strong>
             <p class="action-meta">Reason: {{ action.reason }}</p>
-            <p class="action-meta">Owner: {{ action.owner }} · Severity: {{ action.severity }}</p>
+            <p class="action-meta">Next step: {{ action_next_step(action.owner) }}</p>
+            <p class="action-meta">Owner: {{ action.owner }} · Severity: {{ action.severity }} · Expected impact: {{ action.estimated_impact }}</p>
           </li>
           {% endfor %}
         </ol>
@@ -310,6 +325,7 @@
           {% for issue in group %}
           <li>
             <strong>{{ issue.title }}</strong> — {{ issue.description }}
+            <br><span class="action-meta">Business impact: {{ issue_business_impact(issue.category) }}</span>
             <br><span class="action-meta">{{ issue.category }} · {{ issue.recommendation }}</span>
           </li>
           {% endfor %}
@@ -320,39 +336,39 @@
     </section>
     {% endif %}
 
-    <!-- Общая сводка -->
+    <!-- Report coverage -->
     <section>
-      <h2>Общая сводка</h2>
+      <h2>Report coverage</h2>
       <div class="card">
         <div class="grid-2">
           <div class="stat">
-            <div class="stat-label">HTTP статус</div>
+            <div class="stat-label">Homepage HTTP status</div>
             <div class="stat-value">
               {% if report.page.status_code is not none %}{{ report.page.status_code }}{% else %}—{% endif %}
             </div>
           </div>
           <div class="stat">
-            <div class="stat-label">Время ответа</div>
+            <div class="stat-label">Homepage response time</div>
             <div class="stat-value">
               {% if report.page.response_time_ms is not none %}{{ report.page.response_time_ms }} мс{% else %}—{% endif %}
             </div>
           </div>
           <div class="stat">
-            <div class="stat-label">Предупреждений</div>
+            <div class="stat-label">Warnings</div>
             <div class="stat-value">{{ report.all_warnings|length }}</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Битых ссылок</div>
+            <div class="stat-label">Broken internal links</div>
             <div class="stat-value">
               {% if report.links %}{{ report.links.broken_count }}{% else %}0{% endif %}
             </div>
           </div>
           <div class="stat">
-            <div class="stat-label">Форм на странице</div>
+            <div class="stat-label">Forms found</div>
             <div class="stat-value">{{ report.forms|length }}</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Внутренних ссылок</div>
+            <div class="stat-label">Internal links found</div>
             <div class="stat-value">
               {% if report.links %}{{ report.links.internal_links|length }}{% else %}0{% endif %}
             </div>
@@ -361,9 +377,9 @@
       </div>
     </section>
 
-    <!-- Изменения с прошлой проверки -->
+    <!-- Changes since previous check -->
     <section>
-      <h2>Что изменилось с прошлой проверки</h2>
+      <h2>Changes since previous check</h2>
       <div class="card">
         {% if report.diff %}
           {% if not report.diff.has_previous %}
@@ -392,14 +408,14 @@
             <p class="empty">{{ report.diff.no_changes_message }}</p>
           {% endif %}
         {% else %}
-          <p class="empty">Предыдущая проверка не найдена. Это базовый отчёт.</p>
+          <p class="empty">No previous check was found. This report is the baseline for future weekly comparisons.</p>
         {% endif %}
       </div>
     </section>
 
-    <!-- Доступность -->
+    <!-- Availability -->
     <section>
-      <h2>Доступность</h2>
+      <h2>Availability</h2>
       <div class="card">
         <table>
           <tr><th>Параметр</th><th>Значение</th><th>Статус</th></tr>
@@ -443,7 +459,7 @@
 
     <!-- SEO -->
     <section>
-      <h2>SEO-база</h2>
+      <h2>Basic SEO</h2>
       <div class="card">
         {% if report.seo %}
         <table>
@@ -507,14 +523,14 @@
           </tr>
         </table>
         {% else %}
-        <p class="empty">HTML недоступен — SEO-проверки не выполнены.</p>
+        <p class="empty">HTML was unavailable, so SEO checks could not be completed.</p>
         {% endif %}
       </div>
     </section>
 
     <!-- robots & sitemap -->
     <section>
-      <h2>robots.txt и sitemap.xml</h2>
+      <h2>robots.txt and sitemap.xml</h2>
       <div class="card">
         <table>
           <tr><th>Ресурс</th><th>URL</th><th>HTTP</th><th>Статус</th></tr>
@@ -611,9 +627,9 @@
     </section>
     {% endif %}
 
-    <!-- Формы -->
+    <!-- Forms -->
     <section>
-      <h2>Формы</h2>
+      <h2>Forms</h2>
       <div class="card">
         {% if report.forms %}
         <table>
@@ -636,20 +652,20 @@
           {% endfor %}
         </table>
         {% else %}
-        <p class="empty">Формы на странице не найдены.</p>
+        <p class="empty">No forms were found on the checked page.</p>
         {% endif %}
       </div>
     </section>
 
-    <!-- Ссылки -->
+    <!-- Links -->
     <section>
-      <h2>Ссылки</h2>
+      <h2>Links</h2>
       <div class="card">
         {% if report.links %}
         <p style="margin-bottom: 1rem; color: var(--muted);">
-          Внутренних: {{ report.links.internal_links|length }},
-          внешних: {{ report.links.external_links|length }},
-          проверено: {{ report.links.checked_links|length }}
+          Internal: {{ report.links.internal_links|length }},
+          external: {{ report.links.external_links|length }},
+          checked: {{ report.links.checked_links|length }}
         </p>
         {% if report.links.checked_links %}
         <table>
@@ -675,29 +691,29 @@
           {% endfor %}
         </table>
         {% else %}
-        <p class="empty">Внутренние ссылки для проверки не найдены.</p>
+        <p class="empty">No internal links were available for link checking.</p>
         {% endif %}
 
         {% if report.links.external_links %}
-        <h2 style="margin-top: 1.25rem; font-size: 1rem;">Внешние ссылки (без проверки)</h2>
+        <h2 style="margin-top: 1.25rem; font-size: 1rem;">External links (listed, not checked)</h2>
         <ul class="plain">
           {% for ext in report.links.external_links[:20] %}
           <li><code>{{ ext }}</code></li>
           {% endfor %}
           {% if report.links.external_links|length > 20 %}
-          <li class="empty">… и ещё {{ report.links.external_links|length - 20 }}</li>
+          <li class="empty">... and {{ report.links.external_links|length - 20 }} more</li>
           {% endif %}
         </ul>
         {% endif %}
         {% else %}
-        <p class="empty">Проверка ссылок не выполнена.</p>
+        <p class="empty">Link checking was not completed.</p>
         {% endif %}
       </div>
     </section>
 
-    <!-- Проблемы -->
+    <!-- Raw warnings -->
     <section>
-      <h2>Найденные проблемы</h2>
+      <h2>Supporting warnings</h2>
       <div class="card">
         {% if report.all_warnings %}
         <ul class="plain">
@@ -706,14 +722,14 @@
           {% endfor %}
         </ul>
         {% else %}
-        <p class="empty">Критичных предупреждений не обнаружено.</p>
+        <p class="empty">No supporting warnings were found.</p>
         {% endif %}
       </div>
     </section>
 
-    <!-- Рекомендации -->
+    <!-- Recommendations -->
     <section>
-      <h2>Рекомендации</h2>
+      <h2>Additional recommendations</h2>
       <div class="card">
         {% if report.recommendations %}
         <ul class="plain rec-list">
@@ -722,7 +738,7 @@
           {% endfor %}
         </ul>
         {% else %}
-        <p class="empty">Дополнительных рекомендаций нет.</p>
+        <p class="empty">No additional recommendations.</p>
         {% endif %}
       </div>
     </section>

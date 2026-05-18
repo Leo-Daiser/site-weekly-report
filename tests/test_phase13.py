@@ -15,6 +15,7 @@ class TestSalesPackConfig(unittest.TestCase):
         self.assertEqual(len(config.plans), 3)
         self.assertEqual(config.plans[0].checkout_url, "")
         self.assertEqual(config.contact_email, "hello@webreportweekly.example")
+        self.assertEqual(config.signup_url, "/signup")
         self.assertTrue(config.main_benefits)
 
 
@@ -40,6 +41,7 @@ class TestGenerateSalesPack(unittest.TestCase):
                 "outreach_messages.md",
                 "objections.md",
                 "demo_report_notes.md",
+                "go_to_market_checklist.md",
                 "sales_pack_index.md",
             ]
             for name in expected:
@@ -49,6 +51,7 @@ class TestGenerateSalesPack(unittest.TestCase):
             landing = (pack_dir / "landing_copy.md").read_text(encoding="utf-8")
             self.assertIn("WebReport Weekly", landing)
             self.assertIn("Get a free sample report", landing)
+            self.assertIn("recurring reporting service", landing)
 
             pricing = (pack_dir / "pricing.md").read_text(encoding="utf-8")
             self.assertIn("Agency Lite", pricing)
@@ -56,6 +59,11 @@ class TestGenerateSalesPack(unittest.TestCase):
 
             index = (pack_dir / "sales_pack_index.md").read_text(encoding="utf-8")
             self.assertIn("landing_copy.md", index)
+            self.assertIn("Use order", index)
+
+            checklist = (pack_dir / "go_to_market_checklist.md").read_text(encoding="utf-8")
+            self.assertIn("First sales checklist", checklist)
+            self.assertIn("20 targeted contacts", checklist)
 
     def test_html_format_creates_html_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -75,6 +83,10 @@ class TestGenerateSalesPack(unittest.TestCase):
             site = (pack_dir / "landing_page.html").read_text(encoding="utf-8")
             self.assertIn("Choose a plan", site)
             self.assertIn("Agency Lite", site)
+            self.assertIn("not another dashboard", site)
+            self.assertIn("Client login", site)
+            self.assertIn("FAQ", site)
+            self.assertIn("/signup?plan=starter", site)
             self.assertIn("hello@webreportweekly.example", site)
             self.assertNotIn("hello@example.com", site)
 
@@ -127,6 +139,16 @@ class TestCliCompatibility(unittest.TestCase):
             cwd=Path(__file__).resolve().parent.parent,
         )
         self.assertEqual(result.returncode, 0)
+
+    def test_client_portal_help(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "-m", "app.client_portal", "--help"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).resolve().parent.parent,
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertTrue("create-login-link" in result.stdout or "create-login-link" in (result.stderr or ""))
 
 
 if __name__ == "__main__":

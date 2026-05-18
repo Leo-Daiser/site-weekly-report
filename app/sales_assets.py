@@ -16,6 +16,7 @@ SALES_ASSET_TEMPLATES: dict[str, str] = {
     "outreach_messages.md": "sales_outreach_messages.md.j2",
     "objections.md": "sales_objections.md.j2",
     "demo_report_notes.md": "sales_demo_report_notes.md.j2",
+    "go_to_market_checklist.md": "sales_go_to_market_checklist.md.j2",
 }
 
 SALES_SITE_TEMPLATE = "sales_landing_page.html.j2"
@@ -36,6 +37,7 @@ class SalesPackConfig(BaseModel):
     primary_offer: str
     currency: str = "USD"
     contact_email: str = "hello@example.com"
+    signup_url: str = "/signup"
     plans: list[SalesPlanItem] = Field(default_factory=list)
     main_benefits: list[str] = Field(default_factory=list)
     demo_report_path: str = ""
@@ -59,6 +61,7 @@ def build_template_context(config: SalesPackConfig, *, generated_at: str) -> dic
         "primary_offer": config.primary_offer,
         "currency": config.currency,
         "contact_email": config.contact_email,
+        "signup_url": config.signup_url,
         "plans": config.plans,
         "main_benefits": config.main_benefits,
         "demo_report_path": config.demo_report_path,
@@ -167,6 +170,16 @@ def generate_sales_pack(
         "",
         f"Product: {config.product_name}",
         f"Generated: {generated_at}",
+        "",
+        "## Use order",
+        "",
+        "1. Open `landing_page.html` and confirm the offer is clear.",
+        "2. Open the three demo reports and choose the best one for the prospect.",
+        "3. Use `short_pitch.md` or `outreach_messages.md` for the first contact.",
+        "4. If the prospect replies, send a sample/demo report and answer objections from `objections.md`.",
+        "5. If the prospect wants to proceed, send the plan/signup link and follow the operator runbook.",
+        "",
+        "## Files",
         "",
     ]
     for name in generated_files:

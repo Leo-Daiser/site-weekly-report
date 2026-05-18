@@ -559,6 +559,7 @@ python -m app.sales_pack generate --config data/sales_pack.example.json --output
 | `outreach_messages.md` | Шаблоны холодных и follow-up сообщений |
 | `objections.md` | Возражения и ответы |
 | `demo_report_notes.md` | Как подготовить demo через `app.onboard` |
+| `go_to_market_checklist.md` | Порядок первых ручных продаж и критерии ранней валидации |
 | `sales_pack_index.md` | Оглавление пакета |
 
 Материалы редактируйте вручную перед отправкой клиентам. Для demo используйте `app.onboard` и при необходимости `app.proposal`.
@@ -581,6 +582,19 @@ python -m app.demo_reports generate
 - `sales_pack/demo_reports/medium_site_demo.html`
 - `sales_pack/demo_reports/problem_site_demo.html`
 - новый sales pack с `landing_page.html`, где есть ссылки на demo reports
+
+### Service readiness checklist
+
+Перед первыми продажами проверьте именно услугу, а не SaaS-автоматизацию:
+
+1. Сгенерированы demo reports: `python -m app.demo_reports generate`.
+2. В `landing_page.html` понятно, что продаётся регулярный white-label отчёт, а не доступ к приложению.
+3. В demo report сверху видны `Executive summary`, `Site Health Score`, `Top 3 actions`, owner и business impact.
+4. `good_site_demo`, `medium_site_demo`, `problem_site_demo` показывают три разных сценария: стабильный сайт, сайт с рисками, проблемный сайт.
+5. В `outreach_messages.md` есть короткое сообщение для SEO-фрилансера или студии.
+6. Operator workflow проверен: заявка → approve → клиент → `Run now` → weekly outbox.
+
+Если эти пункты выполнены, можно начинать первые ручные продажи. Клиентский кабинет, Postgres и полноценный SaaS не нужны для проверки спроса.
 
 ## Billing foundation
 
@@ -621,17 +635,46 @@ uvicorn app.admin_app:app --reload
 
 Admin routes:
 
+- `/` — публичный landing из sales config;
 - `/signup` — публичная форма setup после оплаты;
 - `/signup/thanks/{signup_id}` — подтверждение принятой заявки;
+- `/client/login` — клиентский вход через email magic link;
+- `/client` — клиентский dashboard: сайты, subscription status, latest reports;
+- `/client/reports` — последние отчёты клиента;
+- `/client/sites` — сайты и operational status;
+- `/client/settings` — заявки на изменение бренда/получателя;
+- `/client/billing` — read-only billing/subscription status;
 - `/admin/signups` — заявки и approve;
+- `/admin/signups/reconcile-payments` — сверка заявок с локальными Stripe subscription records;
 - `/admin/clients` — операторская таблица из `clients.csv`: payment status, operational status, latest report, latest summary, client package, `Run now`, pause/resume, needs-review;
 - `/admin/clients/detail` — конфиг клиента, payment/operational status, latest report/package и последний run log;
+- `/admin/client-requests` — заявки клиентов на изменение настроек;
 - `/admin/runs` — weekly/admin run logs и batch `Run now`;
 - `/admin/runs/detail` — parsed JSON details по конкретному run log;
 - `/admin/outbox` — отправка prepared писем из outbox;
 - `/webhooks/stripe` — Stripe webhook endpoint.
 
+Static artifact routes:
+
+- `/reports/...` — HTML/PDF reports;
+- `/sales_pack/...` — demo reports and generated sales assets;
+- `/client_packages/...` — onboarding packages for operator review.
+
 Если задан `STRIPE_WEBHOOK_SECRET`, `/webhooks/stripe` проверяет `stripe-signature` через Stripe SDK. Если secret не задан, endpoint работает в локальном JSON sync режиме.
+
+Stripe success URL для checkout/payment link:
+
+```text
+https://YOUR_DOMAIN/signup?plan=agency-lite&session_id={CHECKOUT_SESSION_ID}
+```
+
+Заявки сохраняют `stripe_checkout_session_id`, `payment_status` и `payment_notes`. Если Stripe env не задан, approve работает в local/manual mode. Если Stripe env задан или есть явный `payment_failed/cancelled`/plan mismatch, approve переводит заявку в `needs_review` и не создаёт клиента.
+
+Сверить заявки с локальными subscription records:
+
+```bash
+python -m app.signups reconcile-payments
+```
 
 Weekly runner может пропускать клиентов без активной подписки:
 
@@ -645,9 +688,46 @@ Single-site запуск из `/admin/clients` создаёт `reports/admin_run
 
 Подробная инструкция локального/VPS запуска: `docs/LOCAL_OPERATOR_RUNBOOK.md`.
 
+## Client portal
+
+Клиентский кабинет работает поверх текущих `clients.csv`, `subscriptions.csv`, reports и run logs. Пароли не хранятся: вход через одноразовый magic link.
+
+```bash
+python -m app.client_portal create-login-link --email client@example.com --base-url http://localhost:8000
+python -m app.client_portal list-requests
+python -m app.client_portal approve-request --request-id client_req_0001
+```
+
+Локальные файлы:
+
+- `data/client_portal_sessions.csv` — hash одноразовых magic tokens и client session tokens;
+- `data/client_settings_requests.csv` — заявки клиентов на изменение brand/report settings.
+
+Env:
+
+- `CLIENT_PORTAL_ENABLED=true`;
+- `CLIENT_MAGIC_LINK_TTL_MINUTES=30`;
+- `CLIENT_SESSION_DAYS=7`;
+- `BASE_URL` нужен для абсолютных magic links.
+
+В local/dev режиме `/client/login` показывает magic link на экране. Для live-режима используйте `BASE_URL`, `ADMIN_PASSWORD` и SMTP/Stripe env.
+
+## Backups
+
+Локальный Operator MVP хранит рабочие данные в CSV/SQLite и папках артефактов. Сделать zip backup:
+
+```bash
+python -m app.backup
+```
+
+По умолчанию архив создаётся в `backups/operator_backup_YYYY-MM-DD_HH-MM-SS.zip` и включает `data/*.csv`, `data/checks.sqlite`, `reports/`, `outbox/`, `run_logs/`, `client_packages/`. `.env` не включается автоматически; для полного VPS backup:
+
+```bash
+python -m app.backup --include-env
+```
+
 ## Следующие фазы (план)
 
-- Публичная signup/payment страница, связанная с живым Stripe Checkout
 - Client portal
 - Postgres/storage migration для multi-tenant режима
 - Production deploy automation и reverse proxy/HTTPS
@@ -675,6 +755,7 @@ python -m unittest discover -s tests -v
 - `data/clients.csv`, `data/clients.local.csv`, `data/weekly_jobs.local.json` — локальные конфиги
 - `preflight_reports/*` (кроме `preflight_reports/.gitkeep`) — отчёты preflight
 - `sales_pack/*` (кроме `sales_pack/.gitkeep`) — сгенерированные sales materials
+- `backups/*` (кроме `backups/.gitkeep`) — локальные zip backup
 - `__pycache__/`, `*.pyc` — кэш Python
 - `.venv/`, `venv/`, `.env` — виртуальное окружение и секреты
 

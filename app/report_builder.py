@@ -125,6 +125,50 @@ def status_class(ok: bool, warning: bool = False) -> str:
     return "status-error"
 
 
+def health_summary_text(score: int | None) -> str:
+    if score is None:
+        return "The site was checked, but there is not enough data to calculate a reliable health summary."
+    if score >= 90:
+        return "The site is stable this week. Keep monitoring it so regressions are caught before clients notice them."
+    if score >= 75:
+        return "The site is mostly healthy, with a few items worth cleaning up during regular maintenance."
+    if score >= 60:
+        return "The site works, but there are visible issues that should be assigned and fixed before they accumulate."
+    if score >= 40:
+        return "The site needs attention. Prioritize the top actions before sending traffic or campaigns to this website."
+    return "The site has serious issues. Treat this report as an operational fix list, not just a monitoring update."
+
+
+BUSINESS_IMPACT_BY_CATEGORY: dict[str, str] = {
+    "availability": "Visitors or clients may see a broken site instead of the intended page.",
+    "seo": "Search snippets and indexability may be weaker than they should be.",
+    "technical": "Search engines or monitoring tools may have trouble reading the site correctly.",
+    "forms": "Lead capture can fail or create friction for potential customers.",
+    "links": "Users and search engines can hit dead ends inside the site.",
+    "performance": "Slow responses can reduce conversions and make campaigns less efficient.",
+    "changes": "The site changed compared with the previous check and should be reviewed.",
+    "security": "Trust and browser safety signals may be weaker than expected.",
+    "assets": "Broken images, CSS, or scripts can make the page look unfinished or malfunction.",
+}
+
+
+def issue_business_impact(category: str) -> str:
+    return BUSINESS_IMPACT_BY_CATEGORY.get(
+        category,
+        "This issue can reduce the quality of the client-facing website experience.",
+    )
+
+
+def action_next_step(owner: str) -> str:
+    if owner == "SEO":
+        return "Review the affected page metadata/indexing and update the SEO fields."
+    if owner == "Developer":
+        return "Check the implementation or hosting configuration and deploy a fix."
+    if owner == "Content":
+        return "Update the affected content, links, or page references."
+    return "Assign the issue, confirm priority, and track it through the next weekly report."
+
+
 def render_report(
     report: SiteReport,
     template_dir: Path,
@@ -143,6 +187,9 @@ def render_report(
         branding=branding,
         logo_data_uri=logo_data_uri,
         status_class=status_class,
+        health_summary_text=health_summary_text,
+        issue_business_impact=issue_business_impact,
+        action_next_step=action_next_step,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")

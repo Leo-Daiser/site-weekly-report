@@ -26,6 +26,8 @@ REQUIRED_PROJECT_PATHS = (
     "app/admin_app.py",
     "app/admin_clients.py",
     "app/admin_views.py",
+    "app/client_portal.py",
+    "app/client_views.py",
     "app/billing.py",
     "app/signups.py",
     "app/pipeline.py",
@@ -59,6 +61,8 @@ GITIGNORE_REQUIRED_PATTERNS = (
     "!proposals/.gitkeep",
     "client_packages/*",
     "!client_packages/.gitkeep",
+    "backups/*",
+    "!backups/.gitkeep",
     "data/*.sqlite",
     "data/leads_crm.csv",
     "data/clients.csv",
@@ -67,6 +71,8 @@ GITIGNORE_REQUIRED_PATTERNS = (
     "data/subscriptions.csv",
     "data/pending_signups.csv",
     "data/client_status.csv",
+    "data/client_portal_sessions.csv",
+    "data/client_settings_requests.csv",
     ".env",
     "__pycache__/",
     "*.pyc",
@@ -115,6 +121,7 @@ RUNTIME_DIRS = (
     "crm_exports",
     "proposals",
     "client_packages",
+    "backups",
     "data",
 )
 
@@ -126,12 +133,15 @@ GIT_ARTIFACT_MARKERS = (
     "crm_exports/",
     "proposals/",
     "client_packages/",
+    "backups/",
     "preflight_reports/",
     "data/checks.sqlite",
     "data/leads_crm.csv",
     "data/clients.csv",
     "data/clients.local.csv",
     "data/weekly_jobs.local.json",
+    "data/client_portal_sessions.csv",
+    "data/client_settings_requests.csv",
     ".env",
     "__pycache__",
     ".pytest_cache",
@@ -165,6 +175,8 @@ SMOKE_MODULES = (
     "app.admin_app",
     "app.billing",
     "app.signups",
+    "app.client_portal",
+    "app.backup",
 )
 
 DEMO_EMAIL_MARKERS = ("demo@example.com", "client@example.com", "example.com")
@@ -640,7 +652,13 @@ def check_operator_config(ctx: PreflightContext) -> PreflightCheckResult:
         errors.append("data/sales_pack.local.example.json is missing")
     else:
         try:
-            json.loads(sales_config.read_text(encoding="utf-8"))
+            sales_data = json.loads(sales_config.read_text(encoding="utf-8"))
+            plans = sales_data.get("plans", []) if isinstance(sales_data, dict) else []
+            for plan in plans if isinstance(plans, list) else []:
+                checkout_url = plan.get("checkout_url", "") if isinstance(plan, dict) else ""
+                if "buy.stripe.com/replace-" in str(checkout_url):
+                    warnings.append("sales pack checkout URLs still contain Stripe placeholders")
+                    break
         except (OSError, json.JSONDecodeError) as exc:
             errors.append(f"sales_pack.local.example.json: {exc}")
 
@@ -667,6 +685,11 @@ def check_operator_config(ctx: PreflightContext) -> PreflightCheckResult:
         warnings.append(
             "admin password env is not set: " + ", ".join(missing_admin)
         )
+    elif os.environ.get("ADMIN_PASSWORD", "").strip() == "change-me":
+        warnings.append("ADMIN_PASSWORD still uses the example value")
+
+    if not os.environ.get("BASE_URL", "").strip():
+        warnings.append("BASE_URL env is not set")
 
     missing_stripe = [
         name for name in STRIPE_ENV_VARS if not os.environ.get(name, "").strip()
@@ -675,6 +698,9 @@ def check_operator_config(ctx: PreflightContext) -> PreflightCheckResult:
         warnings.append(
             "Stripe env is not set: " + ", ".join(missing_stripe)
         )
+
+    if not (ctx.project_root / "backups" / ".gitkeep").is_file():
+        warnings.append("backups/.gitkeep is missing")
 
     if errors:
         return _result(
@@ -737,6 +763,10 @@ def check_git_status(ctx: PreflightContext) -> PreflightCheckResult:
         if not path_part:
             continue
         normalized = path_part.replace("\\", "/")
+        if normalized.endswith("/"):
+            dir_path = ctx.project_root / normalized
+            if dir_path.is_dir() and (dir_path / ".gitkeep").is_file():
+                continue
         for marker in GIT_ARTIFACT_MARKERS:
             is_dir_marker = marker.endswith("/") or "/" in marker
             if normalized == marker.rstrip("/") or (is_dir_marker and normalized.startswith(marker)):
