@@ -1,700 +1,371 @@
-# Weekly Site Report
+# WebReport Weekly
 
-Локальный CLI-инструмент для SEO-фрилансеров и веб-студий. Сканирует главную страницу сайта, проверяет базовые технические и SEO-параметры, часть внутренних ссылок и генерирует HTML-отчёт.
+Local-first service toolkit for weekly white-label website reports.
 
-## Установка
+WebReport Weekly is not just a scanner script. It is an operator-focused workflow for agencies, SEO freelancers, and small web studios that need to send regular website health reports to their clients.
 
-```bash
+The project can generate reports, prepare demo sales assets, manage clients, run weekly batches, prepare email outbox, and expose a simple FastAPI site with:
+
+- public marketing page;
+- signup/setup form;
+- admin-only operator panel;
+- client portal with magic-link login;
+- mock billing flow for local development.
+
+The current version is an open-source local/VPS Operator MVP. It intentionally uses CSV, SQLite, and local files instead of a full multi-tenant SaaS stack.
+
+## What The Service Does
+
+For each website, WebReport Weekly can check and report:
+
+- whether the site is reachable;
+- basic SEO: title, meta description, H1, canonical, language;
+- internal links and broken links;
+- forms;
+- robots.txt and sitemap.xml;
+- HTTPS, HTTP to HTTPS redirect, SSL expiry;
+- noindex pages;
+- broken images/assets;
+- changes compared with the previous run;
+- Site Health Score;
+- Top 3 recommended actions with owner: SEO, Developer, Content, or Ops.
+
+Reports are generated as white-label HTML and optionally PDF.
+
+## Product Shape
+
+This repository supports a semi-automated service workflow:
+
+1. Generate demo reports and sales materials.
+2. Send prospects a sample report manually.
+3. Convert a client into `data/clients.csv`.
+4. Run the first report from admin.
+5. Run weekly reports manually or through a scheduler.
+6. Prepare an email outbox.
+7. Send emails only when explicitly requested.
+
+The service is designed so one operator can serve early clients without editing code for every new report.
+
+## Current Status
+
+Implemented:
+
+- single-site scanner and report generator;
+- batch report generation from CSV;
+- weekly runner;
+- outbox and SMTP sending;
+- white-label branding;
+- SQLite history and diff;
+- health score and top actions;
+- demo reports;
+- sales pack generator;
+- local CRM and proposal tools;
+- signup/payment reconciliation foundation;
+- admin panel;
+- client portal;
+- mock billing requests.
+
+Not implemented as production SaaS yet:
+
+- multi-tenant Postgres storage;
+- hardened auth/permissions for public SaaS scale;
+- real self-serve billing UI connected directly to Stripe Checkout;
+- client-side plan changes without operator approval;
+- managed deployment automation.
+
+## Tech Stack
+
+| Area | Technology |
+|---|---|
+| Backend | Python 3.11+, FastAPI |
+| CLI | Typer |
+| Templates | Jinja2 |
+| Storage | CSV + SQLite + local artifacts |
+| Reports | HTML, optional PDF via Playwright/Chromium |
+| Billing foundation | Stripe-compatible webhook/local sync |
+| Tests | `unittest` |
+
+## Repository Structure
+
+```text
+app/                 Python modules: scanner, batch, weekly, admin app, client portal
+templates/           Jinja2 report/email templates
+data/                example configs and local CSV/SQLite runtime files
+branding/            branding config example
+reports/             generated reports, ignored by git
+outbox/              prepared email drafts, ignored by git
+run_logs/            weekly/admin run logs, ignored by git
+sales_pack/          generated sales assets and demo reports, ignored by git
+client_packages/     onboarding packages, ignored by git
+docs/                operator runbook
+tests/               regression tests
+```
+
+## Quick Start
+
+Run commands from the repository root.
+
+### 1. Create Environment
+
+PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Требуется Python 3.11+.
-
-## Запуск
-
-Из корня проекта:
+Linux/macOS:
 
 ```bash
-python -m app.main --url https://example.com
-```
-
-### Параметры
-
-| Параметр       | По умолчанию | Описание                              |
-|----------------|--------------|---------------------------------------|
-| `--url`        | —            | URL сайта (обязательный)              |
-| `--max-links`  | 30           | Сколько внутренних ссылок проверить   |
-| `--timeout`    | 10           | Таймаут HTTP-запросов (сек)           |
-| `--output-dir` | `reports`    | Папка для сохранения HTML-отчёта      |
-| `--db-path`    | `data/checks.sqlite` | SQLite-база истории проверок |
-| `--brand-name` | —            | Название бренда в отчёте              |
-| `--client-name`| —            | Имя клиента (white-label)             |
-| `--brand-color`| `#2563eb`    | Акцентный цвет (#RRGGBB)              |
-| `--brand-logo` | —            | Путь к логотипу (png/jpg/svg)         |
-| `--footer-text`| —            | Текст в подвале отчёта                |
-| `--branding-file` | —         | JSON с настройками брендинга          |
-| `--format`     | `html`       | `html`, `pdf` или `both`              |
-| `--max-pages`  | `10`         | Сколько страниц проверить в crawl     |
-| `--screenshot` | `false`      | Сделать screenshot главной через Playwright |
-
-Пример с параметрами:
-
-```bash
-python -m app.main --url https://example.com --max-links 20 --timeout 15 --output-dir reports
-```
-
-Отчёт сохраняется как `reports/example_com_2026-05-16_14-30-00.html`.
-
-## White-label reports
-
-Отчёт можно оформить под своё агентство: название бренда, клиент, цвет, логотип и текст в подвале. Настройки задаются через CLI или JSON-файл (`--branding-file`). CLI-параметры имеют приоритет над файлом.
-
-Пример:
-
-```bash
-python -m app.main --url https://example.com \
-  --brand-name "SEO Studio" \
-  --client-name "Client Company" \
-  --brand-color "#2563eb" \
-  --format html
-```
-
-### Branding JSON
-
-Пример `branding/default.json`:
-
-```json
-{
-  "brand_name": "WebReport Weekly",
-  "client_name": null,
-  "brand_color": "#2563eb",
-  "logo_path": null,
-  "footer_text": "Prepared by WebReport Weekly",
-  "show_powered_by": true
-}
-```
-
-Запуск с файлом:
-
-```bash
-python -m app.main --url https://example.com --branding-file branding/default.json --format both
-```
-
-Логотип встраивается в HTML как base64 (self-contained). Если файл логотипа не найден, выводится предупреждение, отчёт создаётся без логотипа.
-
-## PDF export
-
-Для PDF нужен Playwright и Chromium:
-
-```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
+
+Optional PDF/screenshot support:
+
+```bash
 python -m playwright install chromium
 ```
 
-Пример HTML + PDF:
+### 2. Verify Installation
 
 ```bash
-python -m app.main --url https://example.com \
-  --brand-name "SEO Studio" \
-  --client-name "Client Company" \
-  --format both
+python -m app.preflight
+python -m unittest discover -v
 ```
 
-Файлы сохраняются рядом: `reports/example_com_YYYY-MM-DD_HH-MM-SS.html` и `.pdf`.
+Expected local result: preflight should be `READY: yes`. It may warn that production env variables are not configured. That is normal for local development.
 
-- `--format html` — только HTML (по умолчанию)
-- `--format pdf` — HTML (для рендера) + PDF; при ошибке PDF процесс завершается с ошибкой
-- `--format both` — оба файла; при ошибке PDF HTML всё равно сохраняется
-
-## История проверок
-
-Каждый запуск сохраняет снимок проверки в локальную SQLite-базу (по умолчанию `data/checks.sqlite`). Перед сохранением текущей записи программа ищет последнюю проверку того же домена и строит diff.
-
-**Нормализация домена:** `https://www.example.com/page` → `example.com`; `https://sub.example.com` → `sub.example.com` (префикс `www.` убирается, поддомены сохраняются).
-
-Запуск с базой по умолчанию:
+### 3. Generate Demo Reports And Sales Pack
 
 ```bash
-python -m app.main --url https://example.com
+python -m app.demo_reports generate
+python -m app.sales_pack generate --format both
 ```
 
-Свой путь к базе:
+Generated files:
+
+- `sales_pack/demo_reports/good_site_demo.html`;
+- `sales_pack/demo_reports/medium_site_demo.html`;
+- `sales_pack/demo_reports/problem_site_demo.html`;
+- `sales_pack/generated_YYYY-MM-DD_HH-MM-SS/landing_page.html`;
+- outreach, FAQ, pricing, objections, and checklist files.
+
+### 4. Start The Web App
+
+For local development:
 
 ```bash
-python -m app.main --url https://example.com --db-path data/my_checks.sqlite
+uvicorn app.admin_app:app --host 127.0.0.1 --port 8000
 ```
 
-В HTML-отчёте блок **«Что изменилось с прошлой проверки»** показывает:
-
-- сообщение о первой проверке, если истории ещё нет;
-- список изменений с severity (`positive`, `neutral`, `warning`, `critical`);
-- текст об отсутствии существенных изменений, если метрики совпали.
-
-База и отчёты остаются на вашей машине (см. `.gitignore`: `data/*.sqlite` не коммитятся).
-
-## Что проверяет первая версия (MVP)
-
-- Доступность главной страницы (статус, редиректы, время ответа)
-- SEO: title, meta description, H1, canonical, lang
-- Наличие `robots.txt` и `sitemap.xml`
-- Формы на странице (method, action, inputs, submit)
-- Внутренние и внешние ссылки; проверка первых N внутренних на HTTP-ошибки
-- HTML-отчёт с предупреждениями и рекомендациями
-
-## Фаза 2
-
-- SQLite-история проверок по домену
-- Сравнение с предыдущей проверкой и блок изменений в отчёте
-
-## Фаза 3
-
-- White-label: бренд, клиент, цвет, логотип, footer
-- Экспорт PDF через Playwright (A4)
-
-## Batch reports
-
-Пакетная генерация отчётов по списку клиентов из CSV:
-
-```bash
-python -m app.batch --clients data/clients.example.csv --output-dir reports --format html
-```
-
-С HTML и PDF:
-
-```bash
-python -m app.batch --clients data/clients.example.csv --output-dir reports --format both
-```
-
-### Формат CSV
-
-Обязательные поля: `client_name`, `url`.
-
-Опциональные: `client_email`, `brand_name`, `brand_color`, `brand_logo`, `footer_text`, `format`, `max_links`, `max_pages`, `screenshot`, `timeout`.
-
-Если `format`, `max_links` или `timeout` пустые — используются значения из CLI (`--format`, `--max-links`, `--timeout`).
-
-Пример: `data/clients.example.csv`.
-
-### Результаты batch
-
-Для каждого запуска создаётся папка:
-
-`reports/batch_YYYY-MM-DD_HH-MM-SS/`
-
-Внутри:
-
-- HTML/PDF-отчёты по каждому сайту из CSV;
-- `summary.csv` — сводная таблица по всем строкам;
-- `summary.html` — та же сводка в виде HTML с относительными ссылками на отчёты.
-
-При `--continue-on-error` (по умолчанию включён) ошибка одного сайта не останавливает обработку остальных; ошибка попадает в summary.
-
-Подходит для первых клиентов агентства: подготовьте CSV, запустите batch, отправьте клиентам отчёты из batch-папки.
-
-## Фаза 4
-
-- Batch-режим по CSV (`python -m app.batch`)
-- Общий pipeline для `app.main` и `app.batch`
-
-## Email delivery and outbox
-
-После batch можно подготовить письма клиентам. **По умолчанию письма не отправляются** (`--dry-run` включён): они сохраняются в `outbox/` для проверки. Реальная отправка — отдельное явное действие с `--no-dry-run`.
-
-Инструмент предназначен для отправки отчётов **своим клиентам**, а не для массового спама.
-
-### Workflow
-
-```bash
-python -m app.batch --clients data/clients.example.csv --output-dir reports --format both
-
-python -m app.send_reports --batch-dir reports/batch_YYYY-MM-DD_HH-MM-SS --clients data/clients.example.csv --dry-run
-
-python -m app.send_reports --batch-dir reports/batch_YYYY-MM-DD_HH-MM-SS --clients data/clients.example.csv --no-dry-run
-```
-
-Опционально сразу после batch:
-
-```bash
-python -m app.batch --clients data/clients.example.csv --output-dir reports --format both --create-outbox
-```
-
-### Outbox
-
-Для batch-папки создаётся `outbox/<имя_batch>/`:
-
-- `emails/*.txt` и `emails/*.html` — черновики писем;
-- `manifest.csv` — список писем, статусы (`prepared`, `sent`, `failed`, `skipped`).
-
-Просмотрите письма в outbox перед отправкой.
-
-### SMTP
-
-Скопируйте `.env.example` в `.env` или передайте параметры CLI (`--smtp-host`, `--smtp-username`, …).
-
-При `--no-dry-run` без полного SMTP-конфига (см. `.env.example`) программа завершится с понятной ошибкой.
-
-### CSV
-
-Добавлено поле `client_email` (обязательно только для email-delivery). Для обычного batch без отправки email можно оставить пустым.
-
-## Фаза 5
-
-- Outbox с черновиками писем
-- Отправка через SMTP (`python -m app.send_reports`)
-
-## Weekly runner (Фаза 6)
-
-`app.weekly` — единая точка входа для еженедельного процесса: batch-отчёты, outbox и (опционально) отправка писем. Это **не** daemon и **не** планировщик: расписание настраиваете вы сами (Windows Task Scheduler, cron и т.д.).
-
-### Job-файл
-
-Пример: `data/weekly_jobs.example.json`
-
-| Поле | Описание |
-|------|----------|
-| `job_name` | Имя задачи для run-log |
-| `clients_csv` | CSV клиентов (как в batch) |
-| `output_dir` | Папка отчётов (`reports`) |
-| `outbox_dir` | Папка outbox |
-| `db_path` | SQLite истории |
-| `branding_file` | JSON брендинга |
-| `format` | `html`, `pdf`, `both` |
-| `max_links`, `timeout` | Параметры сканирования |
-| `create_outbox` | Задумано для автоматизации; в weekly outbox создаётся в режимах `outbox` и `send` |
-| `send_email` | По умолчанию `false`; **игнорируется**, пока не указан `--mode send` |
-| `continue_on_error` | Как в batch |
-| `limit` | Ограничить число строк CSV (для тестов) |
-
-### Режимы (`--mode`)
-
-| Режим | Действие |
-|-------|----------|
-| `dry-run` (по умолчанию) | Проверить job, CSV и пути; вывести план; **ничего не генерировать и не отправлять** |
-| `generate` | Только batch → `reports/batch_.../` + summary |
-| `outbox` | Batch + outbox; email **не** отправляется |
-| `send` | Batch + outbox + SMTP; нужен полный SMTP-конфиг |
-
-По умолчанию `mode=dry-run`, чтобы случайно не отправить письма. Даже при `send_email: true` в JSON письма уйдут **только** с `--mode send`.
-
-### Run log
-
-Каждый запуск пишет JSON в `run_logs/weekly_run_YYYY-MM-DD_HH-MM-SS.json` (пути batch, outbox, счётчики, ошибка при сбое). Папка `run_logs/*` в `.gitignore`, в git остаётся только `run_logs/.gitkeep`.
-
-### Примеры
-
-```bash
-python -m app.weekly --job-file data/weekly_jobs.example.json
-
-python -m app.weekly --job-file data/weekly_jobs.example.json --mode dry-run
-
-python -m app.weekly --job-file data/weekly_jobs.example.json --mode generate
-
-python -m app.weekly --job-file data/weekly_jobs.example.json --mode outbox
-
-python -m app.weekly --job-file data/weekly_jobs.example.json --mode send
-```
-
-С лимитом для теста:
-
-```bash
-python -m app.weekly --job-file data/weekly_jobs.example.json --mode generate --limit 2
-```
-
-### Планировщик (вручную)
-
-**Windows Task Scheduler** — действие «Запуск программы»:
+Open:
 
 ```text
-python -m app.weekly --job-file data/weekly_jobs.example.json --mode outbox
+http://127.0.0.1:8000
 ```
 
-Рабочая папка: корень проекта. Полный путь к `python` при необходимости.
+Useful pages:
 
-**cron (Linux/macOS)** — пример по понедельникам в 09:00:
+- `http://127.0.0.1:8000/` — public landing page;
+- `http://127.0.0.1:8000/signup` — setup form;
+- `http://127.0.0.1:8000/admin/signups` — admin signups;
+- `http://127.0.0.1:8000/admin/clients` — admin clients;
+- `http://127.0.0.1:8000/admin/billing-requests` — mock billing requests;
+- `http://127.0.0.1:8000/client/login` — client login.
 
-```cron
-0 9 * * MON cd /path/to/weekly-site-report && python -m app.weekly --job-file data/weekly_jobs.example.json --mode outbox
+By default, if `ADMIN_PASSWORD` is not set, admin routes are open locally. For any VPS or shared machine, set `ADMIN_PASSWORD`.
+
+PowerShell example:
+
+```powershell
+$env:ADMIN_PASSWORD="replace-with-strong-password"
+$env:BASE_URL="http://127.0.0.1:8000"
+uvicorn app.admin_app:app --host 127.0.0.1 --port 8000
 ```
 
-Для реальной отправки замените `outbox` на `send` и настройте SMTP (`.env` или флаги `--smtp-*`).
+Then open:
 
-## Site Health Score (Фаза 8)
+```text
+http://127.0.0.1:8000/admin/login
+```
 
-В отчёте появляется блок **Executive summary** с **Site Health Score** (0–100), меткой состояния и **Top 3 actions**. Scoring **deterministic и rule-based** — без LLM и внешних API. Это не полноценный SEO-аудит, а сводка по проверкам MVP.
+## Minimal Local Operator Demo
 
-| Score | Label |
-|-------|--------|
-| 90–100 | Excellent |
-| 75–89 | Good |
-| 60–74 | Needs attention |
-| 40–59 | Poor |
-| 0–39 | Critical |
+Use the example clients file:
 
-Учитываются категории: availability, SEO, technical (robots/sitemap), forms, links, performance, changes (diff с прошлой проверкой).
+```powershell
+Copy-Item data\clients.example.csv data\clients.csv
+```
+
+Create a client login link:
+
+```bash
+python -m app.client_portal create-login-link --email client@example.com --base-url http://127.0.0.1:8000
+```
+
+Open the printed link. The client portal includes:
+
+- dashboard with site metrics and latest report state;
+- reports page;
+- sites page;
+- settings requests;
+- billing page with mock upgrade/add-on requests.
+
+Mock billing does not charge money. A client request creates `data/client_billing_requests.csv`; the operator approves or rejects it in `/admin/billing-requests`.
+
+## Generate One Report
 
 ```bash
 python -m app.main --url https://example.com --format html
 ```
 
-В HTML-отчёте: score, label, top actions, issues by severity. Те же поля есть в batch `summary.csv`, email preview и `client.json` при onboard.
-
-Дополнительно отчёт поддерживает расширенные проверки:
-
-- multi-page crawl (`--max-pages`, по умолчанию 10);
-- sitemap discovery с fallback на внутренние ссылки;
-- HTTPS / HTTP→HTTPS / SSL expiry;
-- noindex на проверенных страницах;
-- robots.txt blocking homepage;
-- битые изображения и ассеты;
-- optional homepage screenshot (`--screenshot`).
-
-В `Top 3 actions` указывается owner: `SEO`, `Developer`, `Content` или `Ops`.
-
-## Client onboarding and sample reports (Фаза 7)
-
-`app.onboard` помогает быстро подготовить **первый sample-report** для лида и собрать deliverable-папку для ручной отправки. **Email не отправляется автоматически.**
-
-### Запуск
+White-label example:
 
 ```bash
-python -m app.onboard --client-name "Demo Client" --client-email demo@example.com --url https://example.com --brand-name "SEO Studio" --format html
-
-python -m app.onboard --client-name "Demo Client" --client-email demo@example.com --url https://example.com --brand-name "SEO Studio" --format both
-
-python -m app.onboard --client-name "Demo Client" --client-email demo@example.com --url https://example.com --add-to-clients-csv
+python -m app.main `
+  --url https://example.com `
+  --brand-name "SEO Studio" `
+  --client-name "Client Company" `
+  --brand-color "#147a68" `
+  --format both
 ```
 
-По умолчанию: `--format html`, `--max-links 30`, `--output-dir reports`, `--leads-dir leads`, `--add-to-clients-csv` выключен.
-
-### Папка лида
-
-`leads/<slug>/` (например `leads/demo-client-example-com/`):
-
-| Файл | Описание |
-|------|----------|
-| `client.json` | Метаданные лида и сводка проверки |
-| `sample_report.html` | Копия HTML-отчёта |
-| `sample_report.pdf` | Копия PDF (если `--format pdf` или `both`) |
-| `email_preview.txt` / `email_preview.html` | Черновик письма (шаблоны `email_report.*.j2`) |
-| `notes.md` | Сводка + suggested outreach + next steps |
-
-Оригинал отчёта остаётся в `reports/`.
-
-### Добавление в clients.csv
-
-`--add-to-clients-csv` добавляет строку в `data/clients.csv` (создаёт файл с header, если его нет). Дубликат по URL не добавляется — выводится `already exists`.
-
-Пример CSV лидов (справочно): `data/leads.example.csv`.
-
-Опционально добавить лида в CRM после онбординга:
+Linux/macOS:
 
 ```bash
-python -m app.onboard --client-name "Demo Studio" --client-email demo@example.com --url https://example.com --brand-name "SEO Studio" --format html --add-to-crm true
+python -m app.main \
+  --url https://example.com \
+  --brand-name "SEO Studio" \
+  --client-name "Client Company" \
+  --brand-color "#147a68" \
+  --format both
 ```
 
-## Lead CRM and outreach tracker (Фаза 9)
+Important options:
 
-Локальный **CLI-CRM** на CSV (`data/leads_crm.csv`) для учёта лидов и ручной продажи sample-report: кого нашли, кому отправили отчёт, кто ответил, кому нужен follow-up, кто стал клиентом. **Сообщения не отправляются автоматически** — только экспорт черновиков в markdown.
+| Option | Default | Description |
+|---|---:|---|
+| `--url` | required | Website URL |
+| `--format` | `html` | `html`, `pdf`, or `both` |
+| `--max-links` | `30` | Internal links to check |
+| `--max-pages` | `10` | Pages to crawl |
+| `--screenshot` | `false` | Homepage screenshot via Playwright |
+| `--output-dir` | `reports` | Report output folder |
+| `--db-path` | `data/checks.sqlite` | SQLite history |
 
-Пример данных: `data/leads_crm.example.csv`. Экспорты: `crm_exports/` (не коммитятся).
+## Batch Reports
 
-### Добавить лида
+Run reports for multiple clients:
 
 ```bash
-python -m app.crm add-lead --client-name "Demo Studio" --client-email demo@example.com --url https://example.com --source telegram
+python -m app.batch --clients data/clients.example.csv --output-dir reports --format html
 ```
 
-### Список и статусы
+With outbox preparation:
 
 ```bash
-python -m app.crm list --status new
-
-python -m app.crm mark-status --lead-id lead_0001 --status contacted
+python -m app.batch --clients data/clients.example.csv --output-dir reports --format both --create-outbox
 ```
 
-При `contacted` выставляются `last_contacted_at` и `next_followup_at` (+3 дня).
+Client CSV fields:
 
-### Sample-report в CRM
+- required: `client_name`, `url`;
+- recommended: `client_email`, `brand_name`;
+- optional: `brand_color`, `brand_logo`, `footer_text`, `format`, `max_links`, `max_pages`, `screenshot`, `timeout`.
 
-```bash
-python -m app.crm attach-sample --lead-id lead_0001 --sample-report-path leads/demo-client-example-com/sample_report.html --health-score 72 --health-label "Needs attention"
-```
-
-Или сразу через `app.onboard --add-to-crm true` (статус `sample_created`, путь и health score из отчёта).
-
-### Follow-ups и outreach
-
-```bash
-python -m app.crm followups --today --export true
-
-python -m app.crm export-outreach --status new --limit 10
-```
-
-Создаются файлы `crm_exports/followups_YYYY-MM-DD.md` и `crm_exports/outreach_YYYY-MM-DD.md` с suggested messages из шаблонов `templates/outreach_message.md.j2` и `templates/followup_message.md.j2`.
-
-Статусы: `new`, `sample_created`, `contacted`, `followup_needed`, `replied`, `interested`, `not_interested`, `converted`, `lost`.
-
-## Proposal generator (Фаза 10)
-
-`app.proposal` создаёт коммерческое предложение по `lead_id` из CRM: краткое резюме, состав еженедельного отчёта, тариф и цена, условия и готовый текст для ручной отправки. **Email не отправляется автоматически.**
-
-Тарифы: `data/pricing.example.json` (или встроенный default, если файл не найден).
-
-### Тарифы
-
-```bash
-python -m app.proposal list-plans
-
-python -m app.proposal list-plans --pricing-file data/pricing.example.json
-```
-
-### Создать proposal
-
-```bash
-python -m app.proposal create --lead-id lead_0001 --plan agency-lite
-
-python -m app.proposal create --lead-id lead_0001 --plan starter --format md
-```
-
-Параметры: `--crm-path`, `--pricing-file`, `--output-dir` (по умолчанию `proposals`), `--format` (`md`, `html`, `both`).
-
-### Результат
-
-Папка `proposals/<lead_id>_<slug>/`:
-
-| Файл | Описание |
-|------|----------|
-| `proposal.json` | Метаданные предложения |
-| `proposal.md` | Markdown-версия |
-| `proposal.html` | HTML-версия (self-contained) |
-| `proposal_reply.md` | Текст для ручного сообщения |
-
-В CRM обновляется поле `proposal_path` (старые CSV без колонки мигрируются при чтении).
-
-## Convert lead to client (Фаза 11)
-
-`app.convert_client` переводит лида из CRM в рабочего клиента: добавляет строку в `clients.csv`, ставит статус `converted`, сохраняет тариф и создаёт **client package** для онбординга. **Email не отправляется автоматически** — используйте `welcome_message.md` вручную.
-
-```bash
-python -m app.convert_client --lead-id lead_0001 --plan agency-lite
-
-python -m app.convert_client --lead-id lead_0001 --plan starter --clients-csv data/clients.local.csv
-
-python -m app.convert_client --lead-id lead_0001 --plan agency-lite --add-to-weekly-job true --weekly-job-file data/weekly_jobs.local.json
-```
-
-Требования к лиду: `client_name`, `url`, `client_email`. При дубликате в `clients.csv` (тот же URL + email) CLI выводит `already exists`, но CRM и client package всё равно обновляются.
-
-### Client package
-
-Папка `client_packages/<client_slug>/`:
-
-| Файл | Описание |
-|------|----------|
-| `client_config.json` | Метаданные клиента и тарифа |
-| `onboarding_checklist.md` | Чеклист перед первым weekly run |
-| `welcome_message.md` | Текст для ручной отправки клиенту |
-
-### Weekly job
-
-С `--add-to-weekly-job true` создаётся или обновляется JSON (например `data/weekly_jobs.local.json`): `clients_csv` указывает на ваш CSV, `create_outbox=true`, `send_email=false`. Список клиентов хранится только в CSV, не в job-файле.
-
-Пример локального clients CSV: `data/clients.local.example.csv`.
-
-## Preflight checker (Фаза 12)
-
-`app.preflight` проверяет готовность проекта перед отправкой отчётов клиентам. Итог: **READY** или **NOT READY**. Preflight **не отправляет email** и **не запускает рассылки** — только читает конфиги и окружение.
-
-```bash
-python -m app.preflight
-
-python -m app.preflight --check-pdf true
-
-python -m app.preflight --check-smtp true
-
-python -m app.preflight --format both
-
-python -m app.preflight --clients-csv data/clients.local.csv --weekly-job-file data/weekly_jobs.local.json --strict true
-```
-
-### Статусы
-
-| Статус | Значение |
-|--------|----------|
-| `pass` | Проверка пройдена |
-| `warning` | Замечание (не блокирует READY, кроме `--strict true`) |
-| `fail` | Блокирует READY |
-| `skipped` | Проверка отключена или недоступна |
-
-**READY** = нет `fail`; при `--strict true` любой `warning` тоже даёт NOT READY.
-
-Проверки: структура проекта, `.gitignore`, example-файлы, clients CSV, weekly job, pricing, branding, runtime-папки, operator config, опционально Playwright PDF и SMTP env, smoke imports, `git status` на артефакты.
-
-Markdown-отчёт: `preflight_reports/preflight_YYYY-MM-DD_HH-MM-SS.md` (при `--format md` или `both`).
-
-## Sales pack (Фаза 13)
-
-`app.sales_pack` генерирует локальные **sales materials** для первых продаж: landing copy, pricing, FAQ, короткие питчи, outreach-сообщения, ответы на возражения и заметки по demo-report. Без SaaS, без автоматической отправки email.
-
-Конфиг: `data/sales_pack.example.json`
-
-```bash
-python -m app.sales_pack generate
-
-python -m app.sales_pack generate --format both
-
-python -m app.sales_pack generate --config data/sales_pack.example.json --output-dir sales_pack
-```
-
-### Результат
-
-Папка `sales_pack/generated_YYYY-MM-DD_HH-MM-SS/`:
-
-| Файл | Назначение |
-|------|------------|
-| `landing_copy.md` | Заголовки и ценностное предложение |
-| `pricing.md` | Тарифы из конфига |
-| `faq.md` | Честные ответы на частые вопросы |
-| `short_pitch.md` | 1 / 3 предложения / 30 секунд |
-| `outreach_messages.md` | Шаблоны холодных и follow-up сообщений |
-| `objections.md` | Возражения и ответы |
-| `demo_report_notes.md` | Как подготовить demo через `app.onboard` |
-| `go_to_market_checklist.md` | Порядок первых ручных продаж и критерии ранней валидации |
-| `sales_pack_index.md` | Оглавление пакета |
-
-Материалы редактируйте вручную перед отправкой клиентам. Для demo используйте `app.onboard` и при необходимости `app.proposal`.
-
-При `--format html` или `--format both` дополнительно создаётся `landing_page.html` — статическая страница с оффером, тарифами, ссылкой на sample report и CTA для оплаты. Чтобы включить self-serve оплату без полноценного SaaS, добавьте Stripe/PayPal payment links в `checkout_url` для каждого тарифа в `data/sales_pack.example.json` или в своём локальном конфиге.
-
-Для локального конфига без секретов используйте `data/sales_pack.local.example.json`: замените `contact_email` и `checkout_url` на реальные значения.
-
-## Demo reports (Фаза 14)
-
-Стабильные demo reports для продаж генерируются без сети:
-
-```bash
-python -m app.demo_reports generate
-```
-
-Результат:
-
-- `sales_pack/demo_reports/good_site_demo.html`
-- `sales_pack/demo_reports/medium_site_demo.html`
-- `sales_pack/demo_reports/problem_site_demo.html`
-- новый sales pack с `landing_page.html`, где есть ссылки на demo reports
-
-### Service readiness checklist
-
-Перед первыми продажами проверьте именно услугу, а не SaaS-автоматизацию:
-
-1. Сгенерированы demo reports: `python -m app.demo_reports generate`.
-2. В `landing_page.html` понятно, что продаётся регулярный white-label отчёт, а не доступ к приложению.
-3. В demo report сверху видны `Executive summary`, `Site Health Score`, `Top 3 actions`, owner и business impact.
-4. `good_site_demo`, `medium_site_demo`, `problem_site_demo` показывают три разных сценария: стабильный сайт, сайт с рисками, проблемный сайт.
-5. В `outreach_messages.md` есть короткое сообщение для SEO-фрилансера или студии.
-6. Operator workflow проверен: заявка → approve → клиент → `Run now` → weekly outbox.
-
-Если эти пункты выполнены, можно начинать первые ручные продажи. Клиентский кабинет, Postgres и полноценный SaaS не нужны для проверки спроса.
-
-## Billing foundation
-
-Локальная Stripe-compatible основа работает без обязательного Stripe SDK. Реальные секреты берутся только из env:
-
-```bash
-python -m app.billing verify-config
-python -m app.billing list
-python -m app.billing sync-local --event-file stripe_event.json
-```
-
-Поддерживаемые события:
-
-- `checkout.session.completed`
-- `invoice.paid`
-- `invoice.payment_failed`
-- `customer.subscription.deleted`
-
-Статусы подписки: `pending_payment`, `active`, `payment_failed`, `cancelled`. Локальное хранилище: `data/subscriptions.csv` (не коммитится).
-
-## Admin and signups
-
-Заявки после оплаты можно принимать и approve-ить через CLI:
-
-```bash
-python -m app.signups create --agency-name "Demo Agency" --billing-email billing@example.com --report-recipient-email reports@example.com --plan agency-lite --website-urls https://example.com
-python -m app.signups list
-python -m app.signups approve --signup-id signup_0001 --weekly-job-file data/weekly_jobs.local.json
-```
-
-Минимальная admin-only FastAPI админка:
-
-```bash
-uvicorn app.admin_app:app --reload
-```
-
-Если задан `ADMIN_PASSWORD`, откройте `/admin/login` и войдите один раз: админка сохранит `admin_session` cookie. Для API/скриптов также поддерживаются query `?admin_password=...` и header `x-admin-password`.
-
-Admin routes:
-
-- `/` — публичный landing из sales config;
-- `/signup` — публичная форма setup после оплаты;
-- `/signup/thanks/{signup_id}` — подтверждение принятой заявки;
-- `/client/login` — клиентский вход через email magic link;
-- `/client` — клиентский dashboard: health score, warnings, broken links, trend, top actions, latest reports;
-- `/client/reports` — последние отчёты клиента с score/warnings/broken links;
-- `/client/sites` — сайты, operational status, max_pages/screenshot и latest score;
-- `/client/settings` — заявки на изменение бренда/получателя;
-- `/client/billing` — mock billing: тарифы, add-ons и заявки на upgrade/downgrade без реального списания;
-- `/admin/signups` — заявки и approve;
-- `/admin/signups/reconcile-payments` — сверка заявок с локальными Stripe subscription records;
-- `/admin/clients` — операторская таблица из `clients.csv`: payment status, operational status, latest report, latest summary, client package, `Run now`, pause/resume, needs-review;
-- `/admin/clients/detail` — конфиг клиента, payment/operational status, latest report/package и последний run log;
-- `/admin/client-requests` — заявки клиентов на изменение настроек;
-- `/admin/billing-requests` — mock billing requests от клиентов, approve/reject, локальное обновление `subscriptions.csv`;
-- `/admin/runs` — weekly/admin run logs и batch `Run now`;
-- `/admin/runs/detail` — parsed JSON details по конкретному run log;
-- `/admin/outbox` — отправка prepared писем из outbox;
-- `/webhooks/stripe` — Stripe webhook endpoint.
-
-Static artifact routes:
-
-- `/reports/...` — HTML/PDF reports;
-- `/sales_pack/...` — demo reports and generated sales assets;
-- `/client_packages/...` — onboarding packages for operator review.
-
-Если задан `STRIPE_WEBHOOK_SECRET`, `/webhooks/stripe` проверяет `stripe-signature` через Stripe SDK. Если secret не задан, endpoint работает в локальном JSON sync режиме.
-
-Stripe success URL для checkout/payment link:
+Batch output:
 
 ```text
-https://YOUR_DOMAIN/signup?plan=agency-lite&session_id={CHECKOUT_SESSION_ID}
+reports/batch_YYYY-MM-DD_HH-MM-SS/
+  summary.csv
+  summary.html
+  *.html
+  *.pdf
 ```
 
-Заявки сохраняют `stripe_checkout_session_id`, `payment_status` и `payment_notes`. Если Stripe env не задан, approve работает в local/manual mode. Если Stripe env задан или есть явный `payment_failed/cancelled`/plan mismatch, approve переводит заявку в `needs_review` и не создаёт клиента.
+## Weekly Runner
 
-Сверить заявки с локальными subscription records:
+Prepare a local weekly job file:
+
+```powershell
+Copy-Item data\weekly_jobs.example.json data\weekly_jobs.local.json
+```
+
+Dry run:
 
 ```bash
-python -m app.signups reconcile-payments
+python -m app.weekly --job-file data/weekly_jobs.local.json --mode dry-run
 ```
 
-Weekly runner может пропускать клиентов без активной подписки:
+Generate reports only:
+
+```bash
+python -m app.weekly --job-file data/weekly_jobs.local.json --mode generate
+```
+
+Generate reports and email outbox, but do not send:
+
+```bash
+python -m app.weekly --job-file data/weekly_jobs.local.json --mode outbox --active-only true
+```
+
+Send through SMTP:
 
 ```bash
 python -m app.weekly --job-file data/weekly_jobs.local.json --mode send --active-only true
 ```
 
-Клиентские operational statuses (`active`, `paused`, `needs_review`) хранятся в `data/client_status.csv` и тоже учитываются weekly runner.
+`--active-only true` skips paused, cancelled, payment failed, and needs-review clients.
 
-Single-site запуск из `/admin/clients` создаёт `reports/admin_run_YYYY-MM-DD_HH-MM-SS/` и lightweight JSON log в `run_logs/admin_run_YYYY-MM-DD_HH-MM-SS.json`. Email при этом не отправляется автоматически.
+## Email Delivery
 
-Подробная инструкция локального/VPS запуска: `docs/LOCAL_OPERATOR_RUNBOOK.md`.
+Email sending is explicit. The project does not silently send reports.
 
-## Client portal
-
-Клиентский кабинет работает поверх текущих `clients.csv`, `subscriptions.csv`, reports и run logs. Пароли не хранятся: вход через одноразовый magic link.
+Prepare outbox from a batch:
 
 ```bash
-python -m app.client_portal create-login-link --email client@example.com --base-url http://localhost:8000
+python -m app.send_reports --batch-dir reports/batch_YYYY-MM-DD_HH-MM-SS --clients data/clients.csv --dry-run
+```
+
+Send prepared emails:
+
+```bash
+python -m app.send_reports --batch-dir reports/batch_YYYY-MM-DD_HH-MM-SS --clients data/clients.csv --no-dry-run
+```
+
+SMTP must be configured through environment variables or CLI flags.
+
+## Environment Variables
+
+`.env.example` documents the expected variables, but this project does not depend on `.env` autoloading in every command. For local development, set environment variables in your shell, process manager, Docker, or hosting platform.
+
+Common variables:
+
+| Variable | Required For | Description |
+|---|---|---|
+| `ADMIN_PASSWORD` | VPS/admin safety | Password for admin routes |
+| `BASE_URL` | magic links, public URLs | Public base URL |
+| `CLIENT_PORTAL_ENABLED` | client portal | Defaults to `true` |
+| `CLIENT_MAGIC_LINK_TTL_MINUTES` | client portal | Defaults to `30` |
+| `CLIENT_SESSION_DAYS` | client portal | Defaults to `7` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL` | email sending | SMTP delivery |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | real Stripe webhook mode | Optional |
+
+For local development without Stripe/SMTP, the app still works in manual/mock mode.
+
+## Client Portal
+
+Client login uses one-time magic links. Passwords are not stored.
+
+CLI:
+
+```bash
+python -m app.client_portal create-login-link --email client@example.com --base-url http://127.0.0.1:8000
 python -m app.client_portal list-requests
 python -m app.client_portal approve-request --request-id client_req_0001
 python -m app.client_portal list-billing-requests
@@ -702,92 +373,173 @@ python -m app.client_portal approve-billing-request --request-id billing_req_000
 python -m app.client_portal reject-billing-request --request-id billing_req_0001
 ```
 
-Локальные файлы:
+Local client portal files:
 
-- `data/client_portal_sessions.csv` — hash одноразовых magic tokens и client session tokens;
-- `data/client_settings_requests.csv` — заявки клиентов на изменение brand/report settings;
-- `data/client_billing_requests.csv` — mock billing заявки на смену тарифа и add-ons.
+- `data/client_portal_sessions.csv`;
+- `data/client_settings_requests.csv`;
+- `data/client_billing_requests.csv`.
 
-Mock billing не списывает деньги. Клиент создаёт заявку в `/client/billing`, оператор принимает или отклоняет её в `/admin/billing-requests`. Approve для смены тарифа создаёт/обновляет локальную subscription запись со статусом `active`.
+These files are ignored by git.
 
-Env:
+## Admin App
 
-- `CLIENT_PORTAL_ENABLED=true`;
-- `CLIENT_MAGIC_LINK_TTL_MINUTES=30`;
-- `CLIENT_SESSION_DAYS=7`;
-- `BASE_URL` нужен для абсолютных magic links.
+Start:
 
-В local/dev режиме `/client/login` показывает magic link на экране. Для live-режима используйте `BASE_URL`, `ADMIN_PASSWORD` и SMTP/Stripe env.
+```bash
+uvicorn app.admin_app:app --host 127.0.0.1 --port 8000
+```
+
+Admin routes:
+
+- `/admin/signups` — signup review and approval;
+- `/admin/clients` — clients, latest report, status, run now;
+- `/admin/client-requests` — client settings requests;
+- `/admin/billing-requests` — mock billing requests;
+- `/admin/runs` — run logs;
+- `/admin/outbox` — prepared emails.
+
+Static artifact routes:
+
+- `/reports/...`;
+- `/sales_pack/...`;
+- `/client_packages/...`.
+
+## Billing
+
+There are two billing layers:
+
+1. Mock billing in the client portal.
+2. Stripe-compatible webhook/local sync foundation.
+
+Mock billing:
+
+- used by `/client/billing`;
+- creates approval requests;
+- does not charge money;
+- operator approves or rejects requests in `/admin/billing-requests`;
+- approving a plan change updates `data/subscriptions.csv` with `payment_status=active`.
+
+Stripe foundation:
+
+```bash
+python -m app.billing verify-config
+python -m app.billing list
+python -m app.billing sync-local --event-file stripe_event.json
+```
+
+Supported events:
+
+- `checkout.session.completed`;
+- `invoice.paid`;
+- `invoice.payment_failed`;
+- `customer.subscription.deleted`.
+
+For a real checkout link, use this success URL:
+
+```text
+https://YOUR_DOMAIN/signup?plan=agency-lite&session_id={CHECKOUT_SESSION_ID}
+```
+
+## Sales Workflow
+
+Generate stable demo reports:
+
+```bash
+python -m app.demo_reports generate
+```
+
+Generate sales material:
+
+```bash
+python -m app.sales_pack generate --format both
+```
+
+Recommended early sales loop:
+
+1. Find SEO freelancer, agency, or marketer.
+2. Send a relevant demo report.
+3. Offer a free sample report for one site.
+4. If interested, create proposal.
+5. Convert lead to client.
+6. Add client to weekly workflow.
+
+Related CLI tools:
+
+```bash
+python -m app.crm --help
+python -m app.onboard --help
+python -m app.proposal --help
+python -m app.convert_client --help
+```
 
 ## Backups
 
-Локальный Operator MVP хранит рабочие данные в CSV/SQLite и папках артефактов. Сделать zip backup:
+Create a local backup:
 
 ```bash
 python -m app.backup
 ```
 
-По умолчанию архив создаётся в `backups/operator_backup_YYYY-MM-DD_HH-MM-SS.zip` и включает `data/*.csv`, `data/checks.sqlite`, `reports/`, `outbox/`, `run_logs/`, `client_packages/`. `.env` не включается автоматически; для полного VPS backup:
+Include `.env` only when needed:
 
 ```bash
 python -m app.backup --include-env
 ```
 
-## Следующие фазы (план)
+Backup archives are written to `backups/` and ignored by git.
 
-- Client portal
-- Postgres/storage migration для multi-tenant режима
-- Production deploy automation и reverse proxy/HTTPS
-- Интеграции (Search Console, аналитика)
+## Tests
 
-## Тесты
+Run full regression:
 
 ```bash
-python -m unittest discover -s tests -v
+python -m unittest discover -v
 ```
 
-## Что не нужно коммитить
+Useful smoke commands:
 
-В репозиторий не попадают локальные артефакты и окружение (см. `.gitignore`):
-
-- `reports/*` (кроме `reports/.gitkeep`) — HTML/PDF-отчёты и batch-папки `reports/batch_*` после запуска CLI
-- `data/*.sqlite` — локальная история проверок
-- `outbox/*` (кроме `outbox/.gitkeep`) — подготовленные письма
-- `run_logs/*` (кроме `run_logs/.gitkeep`) — JSON-логи weekly-запусков
-- `leads/*` (кроме `leads/.gitkeep`) — deliverable-папки лидов
-- `crm_exports/*` (кроме `crm_exports/.gitkeep`) — markdown follow-up / outreach
-- `data/leads_crm.csv` — локальная CRM-база лидов
-- `proposals/*` (кроме `proposals/.gitkeep`) — коммерческие предложения
-- `client_packages/*` (кроме `client_packages/.gitkeep`) — пакеты онбординга клиентов
-- `data/clients.csv`, `data/clients.local.csv`, `data/weekly_jobs.local.json` — локальные конфиги
-- `preflight_reports/*` (кроме `preflight_reports/.gitkeep`) — отчёты preflight
-- `sales_pack/*` (кроме `sales_pack/.gitkeep`) — сгенерированные sales materials
-- `backups/*` (кроме `backups/.gitkeep`) — локальные zip backup
-- `__pycache__/`, `*.pyc` — кэш Python
-- `.venv/`, `venv/`, `.env` — виртуальное окружение и секреты
-
-После сканирования отчёты лежат локально в `reports/`; при необходимости их можно архивировать или отправить клиенту отдельно от git.
-
-## Структура проекта
-
+```bash
+python -m app.preflight
+python -m app.main --help
+python -m app.batch --help
+python -m app.weekly --help
+python -m app.client_portal --help
 ```
-weekly-site-report/
-  app/           # main, batch, weekly, onboard, crm, proposal, convert_client, preflight
-  preflight_reports/  # отчёты preflight (не коммитится)
-  sales_pack/         # sales materials (не коммитится)
-  proposals/     # коммерческие предложения (не коммитится)
-  client_packages/  # онбординг клиентов (не коммитится)
-  crm_exports/   # markdown outreach/follow-ups (не коммитится)
-  leads/         # deliverable-папки лидов (не коммитится)
-  run_logs/      # JSON-логи weekly (не коммитится)
-  outbox/        # черновики писем (не коммитится)
-  data/          # clients.example.csv, SQLite (не коммитится)
-  branding/      # пример JSON брендинга
-  assets/        # логотипы и статика
-  data/          # SQLite по умолчанию (не коммитится)
-  templates/     # Jinja2-шаблон отчёта
-  reports/       # локальные HTML/PDF (не коммитятся)
-  tests/         # unit-тесты
-  requirements.txt
-  README.md
+
+## What Is Ignored By Git
+
+Runtime artifacts and private local data are intentionally ignored:
+
+- generated reports: `reports/*`;
+- email drafts: `outbox/*`;
+- run logs: `run_logs/*`;
+- backups: `backups/*`;
+- generated sales assets: `sales_pack/*`;
+- local CRM/proposals/leads/client packages;
+- SQLite databases: `data/*.sqlite`, `data/*.db`;
+- local client/subscription/signup CSV files;
+- `.env`, virtual environments, Python caches.
+
+Example files such as `data/clients.example.csv`, `data/weekly_jobs.example.json`, and `data/pricing.example.json` are tracked.
+
+## Production Notes
+
+Before running this outside your machine:
+
+1. Set `ADMIN_PASSWORD`.
+2. Put the app behind HTTPS.
+3. Set `BASE_URL` to the real domain.
+4. Configure SMTP before using `--mode send`.
+5. Configure Stripe env only when using real webhook verification.
+6. Back up `data/`, `reports/`, `outbox/`, `run_logs/`, and `client_packages/`.
+7. Treat CSV/SQLite as local MVP storage, not high-scale SaaS infrastructure.
+
+For detailed local/VPS operations, read:
+
+```text
+docs/LOCAL_OPERATOR_RUNBOOK.md
 ```
+
+## License
+
+MIT. See `LICENSE`.
