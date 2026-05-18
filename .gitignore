@@ -32,6 +32,7 @@ data/pending_signups.csv
 data/client_status.csv
 data/client_portal_sessions.csv
 data/client_settings_requests.csv
+data/client_billing_requests.csv
 
 proposals/*
 !proposals/.gitkeep

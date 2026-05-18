@@ -28,15 +28,22 @@ from app.admin_views import (
     render_signups_page,
 )
 from app.billing import apply_stripe_event
+from app.client_analytics import build_client_dashboard_analytics
 from app.client_portal import (
+    ClientBillingRequest,
     ClientSettingsRequest,
+    approve_billing_request,
     approve_settings_request,
+    billing_requests_for_email,
     clients_for_email,
     consume_magic_token,
+    create_billing_request,
     create_magic_link,
     create_settings_request,
     email_for_session,
+    load_billing_requests,
     load_settings_requests,
+    reject_billing_request,
     requests_for_email,
     revoke_session,
     set_settings_request_status,
@@ -44,6 +51,7 @@ from app.client_portal import (
 )
 from app.client_views import (
     client_layout,
+    render_admin_billing_requests,
     render_admin_client_requests,
     render_client_billing,
     render_client_dashboard,
@@ -67,6 +75,7 @@ from app.signups import (
     validate_signup_for_plan,
 )
 from app.models import SignupRecord
+from app.pricing import list_plans, load_pricing_config
 from app.sales_assets import load_sales_pack_config, render_sales_asset, SALES_SITE_TEMPLATE
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -80,6 +89,7 @@ RUN_LOGS_DIR = ROOT / "run_logs"
 CLIENT_STATUS_PATH = ROOT / "data" / "client_status.csv"
 CLIENT_PORTAL_SESSIONS_PATH = ROOT / "data" / "client_portal_sessions.csv"
 CLIENT_SETTINGS_REQUESTS_PATH = ROOT / "data" / "client_settings_requests.csv"
+CLIENT_BILLING_REQUESTS_PATH = ROOT / "data" / "client_billing_requests.csv"
 WEEKLY_JOB_PATH = ROOT / "data" / "weekly_jobs.local.json"
 DEFAULT_OUTBOX_DIR = ROOT / "outbox"
 REPORTS_DIR = ROOT / "reports"
@@ -161,6 +171,15 @@ def _latest_client_run(email: str, rows) -> dict[str, object] | None:
         if found:
             return found
     return None
+
+
+def _client_analytics(rows):
+    return build_client_dashboard_analytics(rows, REPORTS_DIR, ROOT)
+
+
+def _pricing_plans():
+    config, _warnings = load_pricing_config(PRICING_FILE)
+    return list_plans(config)
 
 
 def _send_magic_link_email(email: str, link: str) -> None:
@@ -389,7 +408,12 @@ def client_dashboard_page(request: Request) -> HTMLResponse:
     return HTMLResponse(
         client_layout(
             "Client dashboard",
-            render_client_dashboard(email, rows, subscription_for_email(SUBSCRIPTIONS_PATH, email), _latest_client_run(email, rows)),
+            render_client_dashboard(
+                email,
+                _client_analytics(rows),
+                subscription_for_email(SUBSCRIPTIONS_PATH, email),
+                _latest_client_run(email, rows),
+            ),
             email=email,
             status=request.query_params.get("status", ""),
             message=request.query_params.get("message", ""),
@@ -400,13 +424,15 @@ def client_dashboard_page(request: Request) -> HTMLResponse:
 @app.get("/client/reports", response_class=HTMLResponse)
 def client_reports_page(request: Request) -> HTMLResponse:
     email = _require_client_email(request)
-    return HTMLResponse(client_layout("Client reports", render_client_reports(_client_rows(email)), email=email))
+    rows = _client_rows(email)
+    return HTMLResponse(client_layout("Client reports", render_client_reports(_client_analytics(rows)), email=email))
 
 
 @app.get("/client/sites", response_class=HTMLResponse)
 def client_sites_page(request: Request) -> HTMLResponse:
     email = _require_client_email(request)
-    return HTMLResponse(client_layout("Client sites", render_client_sites(_client_rows(email)), email=email))
+    rows = _client_rows(email)
+    return HTMLResponse(client_layout("Client sites", render_client_sites(_client_analytics(rows)), email=email))
 
 
 @app.get("/client/settings", response_class=HTMLResponse)
@@ -450,7 +476,63 @@ async def client_settings_submit(request: Request) -> RedirectResponse:
 @app.get("/client/billing", response_class=HTMLResponse)
 def client_billing_page(request: Request) -> HTMLResponse:
     email = _require_client_email(request)
-    return HTMLResponse(client_layout("Client billing", render_client_billing(subscription_for_email(SUBSCRIPTIONS_PATH, email)), email=email))
+    return HTMLResponse(
+        client_layout(
+            "Client billing",
+            render_client_billing(
+                subscription_for_email(SUBSCRIPTIONS_PATH, email),
+                _pricing_plans(),
+                billing_requests_for_email(CLIENT_BILLING_REQUESTS_PATH, email),
+            ),
+            email=email,
+            status=request.query_params.get("status", ""),
+            message=request.query_params.get("message", ""),
+        )
+    )
+
+
+@app.post("/client/billing/request-plan")
+async def client_billing_request_plan(request: Request) -> RedirectResponse:
+    email = _require_client_email(request)
+    form = await _read_form(request)
+    plan_id = str(form.get("plan_id") or "").strip()
+    if not plan_id:
+        return _redirect("/client/billing", status="error", message="Plan is required")
+    subscription = subscription_for_email(SUBSCRIPTIONS_PATH, email)
+    create_billing_request(
+        CLIENT_BILLING_REQUESTS_PATH,
+        ClientBillingRequest(
+            request_id="",
+            client_email=email,
+            request_type="plan_change",
+            current_plan=subscription.plan_id if subscription else "",
+            requested_plan=plan_id,
+            notes="Created from client portal mock checkout",
+        ),
+    )
+    return _redirect("/client/billing", message="Mock plan change request created")
+
+
+@app.post("/client/billing/request-addon")
+async def client_billing_request_addon(request: Request) -> RedirectResponse:
+    email = _require_client_email(request)
+    form = await _read_form(request)
+    addon = str(form.get("addon") or "").strip()
+    if not addon:
+        return _redirect("/client/billing", status="error", message="Add-on is required")
+    subscription = subscription_for_email(SUBSCRIPTIONS_PATH, email)
+    create_billing_request(
+        CLIENT_BILLING_REQUESTS_PATH,
+        ClientBillingRequest(
+            request_id="",
+            client_email=email,
+            request_type="addon",
+            current_plan=subscription.plan_id if subscription else "",
+            addon=addon,
+            notes="Created from client portal mock checkout",
+        ),
+    )
+    return _redirect("/client/billing", message="Mock add-on request created")
 
 
 @app.get("/admin/signups", response_class=HTMLResponse)
@@ -493,6 +575,37 @@ def admin_reject_client_request_page(request: Request, request_id: str) -> Redir
     except Exception as exc:
         return _redirect("/admin/client-requests", status="error", message=f"Reject failed: {exc}")
     return _redirect("/admin/client-requests", status="warning", message="Client request rejected")
+
+
+@app.get("/admin/billing-requests", response_class=HTMLResponse)
+def admin_billing_requests_page(request: Request) -> HTMLResponse:
+    _check_admin(request)
+    return layout(
+        "Billing requests",
+        render_admin_billing_requests(load_billing_requests(CLIENT_BILLING_REQUESTS_PATH)),
+        status=request.query_params.get("status", ""),
+        message=request.query_params.get("message", ""),
+    )
+
+
+@app.post("/admin/billing-requests/{request_id}/approve")
+def admin_approve_billing_request_page(request: Request, request_id: str) -> RedirectResponse:
+    _check_admin(request)
+    try:
+        approve_billing_request(CLIENT_BILLING_REQUESTS_PATH, request_id, SUBSCRIPTIONS_PATH)
+    except Exception as exc:
+        return _redirect("/admin/billing-requests", status="error", message=f"Approve failed: {exc}")
+    return _redirect("/admin/billing-requests", message="Billing request approved")
+
+
+@app.post("/admin/billing-requests/{request_id}/reject")
+def admin_reject_billing_request_page(request: Request, request_id: str) -> RedirectResponse:
+    _check_admin(request)
+    try:
+        reject_billing_request(CLIENT_BILLING_REQUESTS_PATH, request_id)
+    except Exception as exc:
+        return _redirect("/admin/billing-requests", status="error", message=f"Reject failed: {exc}")
+    return _redirect("/admin/billing-requests", status="warning", message="Billing request rejected")
 
 
 @app.post("/admin/signups")

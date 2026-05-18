@@ -639,16 +639,17 @@ Admin routes:
 - `/signup` — публичная форма setup после оплаты;
 - `/signup/thanks/{signup_id}` — подтверждение принятой заявки;
 - `/client/login` — клиентский вход через email magic link;
-- `/client` — клиентский dashboard: сайты, subscription status, latest reports;
-- `/client/reports` — последние отчёты клиента;
-- `/client/sites` — сайты и operational status;
+- `/client` — клиентский dashboard: health score, warnings, broken links, trend, top actions, latest reports;
+- `/client/reports` — последние отчёты клиента с score/warnings/broken links;
+- `/client/sites` — сайты, operational status, max_pages/screenshot и latest score;
 - `/client/settings` — заявки на изменение бренда/получателя;
-- `/client/billing` — read-only billing/subscription status;
+- `/client/billing` — mock billing: тарифы, add-ons и заявки на upgrade/downgrade без реального списания;
 - `/admin/signups` — заявки и approve;
 - `/admin/signups/reconcile-payments` — сверка заявок с локальными Stripe subscription records;
 - `/admin/clients` — операторская таблица из `clients.csv`: payment status, operational status, latest report, latest summary, client package, `Run now`, pause/resume, needs-review;
 - `/admin/clients/detail` — конфиг клиента, payment/operational status, latest report/package и последний run log;
 - `/admin/client-requests` — заявки клиентов на изменение настроек;
+- `/admin/billing-requests` — mock billing requests от клиентов, approve/reject, локальное обновление `subscriptions.csv`;
 - `/admin/runs` — weekly/admin run logs и batch `Run now`;
 - `/admin/runs/detail` — parsed JSON details по конкретному run log;
 - `/admin/outbox` — отправка prepared писем из outbox;
@@ -696,12 +697,18 @@ Single-site запуск из `/admin/clients` создаёт `reports/admin_run
 python -m app.client_portal create-login-link --email client@example.com --base-url http://localhost:8000
 python -m app.client_portal list-requests
 python -m app.client_portal approve-request --request-id client_req_0001
+python -m app.client_portal list-billing-requests
+python -m app.client_portal approve-billing-request --request-id billing_req_0001
+python -m app.client_portal reject-billing-request --request-id billing_req_0001
 ```
 
 Локальные файлы:
 
 - `data/client_portal_sessions.csv` — hash одноразовых magic tokens и client session tokens;
-- `data/client_settings_requests.csv` — заявки клиентов на изменение brand/report settings.
+- `data/client_settings_requests.csv` — заявки клиентов на изменение brand/report settings;
+- `data/client_billing_requests.csv` — mock billing заявки на смену тарифа и add-ons.
+
+Mock billing не списывает деньги. Клиент создаёт заявку в `/client/billing`, оператор принимает или отклоняет её в `/admin/billing-requests`. Approve для смены тарифа создаёт/обновляет локальную subscription запись со статусом `active`.
 
 Env:
 

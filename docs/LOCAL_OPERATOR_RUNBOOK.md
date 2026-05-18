@@ -184,12 +184,18 @@ Client flow:
 2. Client enters the report/billing email.
 3. In local/dev mode, the app shows the magic link on screen.
 4. The magic link opens `/client`.
-5. The client can view dashboard, reports, sites, billing status, and submit settings requests.
+5. The client can view dashboard analytics, reports, sites, billing status, and submit settings or mock billing requests.
 
 Settings requests are stored in:
 
 ```text
 data/client_settings_requests.csv
+```
+
+Mock billing requests are stored in:
+
+```text
+data/client_billing_requests.csv
 ```
 
 Admin reviews them at:
@@ -199,6 +205,14 @@ Admin reviews them at:
 ```
 
 Approve applies safe brand/recipient changes to `data/clients.csv`. Reject leaves the weekly workflow unchanged.
+
+Billing requests are reviewed at:
+
+```text
+/admin/billing-requests
+```
+
+In local/dev mode this is not a real payment processor. Approving a plan change updates `data/subscriptions.csv` with `payment_status=active`; approving an add-on records the operator decision only.
 
 ## 9. Weekly Delivery
 

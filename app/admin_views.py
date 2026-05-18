@@ -58,6 +58,7 @@ def layout(
             '<a href="/admin/signups">Signups</a>'
             '<a href="/admin/clients">Clients</a>'
             '<a href="/admin/client-requests">Client requests</a>'
+            '<a href="/admin/billing-requests">Billing requests</a>'
             '<a href="/admin/runs">Runs</a>'
             '<a href="/admin/outbox">Outbox</a>'
         )

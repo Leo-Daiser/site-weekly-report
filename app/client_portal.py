@@ -13,7 +13,8 @@ from rich.console import Console
 from rich.table import Table
 
 from app.admin_clients import AdminClientRow, build_admin_client_rows
-from app.billing_store import load_subscriptions
+from app.billing_store import load_subscriptions, upsert_subscription
+from app.models import SubscriptionRecord
 from app.utils import resolve_project_path
 
 console = Console()
@@ -32,6 +33,19 @@ REQUEST_COLUMNS = (
     "status",
     "created_at",
     "resolved_at",
+    "admin_notes",
+)
+BILLING_REQUEST_COLUMNS = (
+    "request_id",
+    "client_email",
+    "request_type",
+    "current_plan",
+    "requested_plan",
+    "addon",
+    "status",
+    "created_at",
+    "resolved_at",
+    "notes",
     "admin_notes",
 )
 
@@ -59,6 +73,21 @@ class ClientSettingsRequest:
     status: str = "pending"
     created_at: str = ""
     resolved_at: str = ""
+    admin_notes: str = ""
+
+
+@dataclass
+class ClientBillingRequest:
+    request_id: str
+    client_email: str
+    request_type: str
+    current_plan: str = ""
+    requested_plan: str = ""
+    addon: str = ""
+    status: str = "pending"
+    created_at: str = ""
+    resolved_at: str = ""
+    notes: str = ""
     admin_notes: str = ""
 
 
@@ -323,6 +352,122 @@ def requests_for_email(path: Path, email: str) -> list[ClientSettingsRequest]:
     return [item for item in load_settings_requests(path) if item.client_email.strip().lower() == target]
 
 
+def next_billing_request_id(existing: list[ClientBillingRequest]) -> str:
+    max_num = 0
+    for request in existing:
+        if request.request_id.startswith("billing_req_"):
+            try:
+                max_num = max(max_num, int(request.request_id.split("_")[-1]))
+            except ValueError:
+                continue
+    return f"billing_req_{max_num + 1:04d}"
+
+
+def load_billing_requests(path: Path) -> list[ClientBillingRequest]:
+    if not path.is_file():
+        return []
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        return [
+            ClientBillingRequest(
+                request_id=row.get("request_id", ""),
+                client_email=row.get("client_email", ""),
+                request_type=row.get("request_type", ""),
+                current_plan=row.get("current_plan", ""),
+                requested_plan=row.get("requested_plan", ""),
+                addon=row.get("addon", ""),
+                status=row.get("status") or "pending",
+                created_at=row.get("created_at", ""),
+                resolved_at=row.get("resolved_at", ""),
+                notes=row.get("notes", ""),
+                admin_notes=row.get("admin_notes", ""),
+            )
+            for row in reader
+        ]
+
+
+def save_billing_requests(path: Path, requests: list[ClientBillingRequest]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=BILLING_REQUEST_COLUMNS)
+        writer.writeheader()
+        for request in requests:
+            writer.writerow(request.__dict__)
+
+
+def create_billing_request(path: Path, request: ClientBillingRequest) -> ClientBillingRequest:
+    requests = load_billing_requests(path)
+    if not request.request_id:
+        request.request_id = next_billing_request_id(requests)
+    if not request.created_at:
+        request.created_at = utc_now_iso()
+    request.client_email = request.client_email.strip().lower()
+    requests.append(request)
+    save_billing_requests(path, requests)
+    return request
+
+
+def billing_requests_for_email(path: Path, email: str) -> list[ClientBillingRequest]:
+    target = email.strip().lower()
+    return [item for item in load_billing_requests(path) if item.client_email.strip().lower() == target]
+
+
+def set_billing_request_status(
+    path: Path,
+    request_id: str,
+    status: str,
+    *,
+    admin_notes: str = "",
+) -> ClientBillingRequest:
+    requests = load_billing_requests(path)
+    for index, request in enumerate(requests):
+        if request.request_id == request_id:
+            request.status = status
+            request.resolved_at = utc_now_iso()
+            if admin_notes:
+                request.admin_notes = admin_notes
+            requests[index] = request
+            save_billing_requests(path, requests)
+            return request
+    raise ValueError(f"Billing request not found: {request_id}")
+
+
+def approve_billing_request(
+    requests_path: Path,
+    request_id: str,
+    subscriptions_path: Path,
+) -> ClientBillingRequest:
+    request = set_billing_request_status(
+        requests_path,
+        request_id,
+        "approved",
+        admin_notes="Approved from admin mock billing",
+    )
+    if request.request_type == "plan_change" and request.requested_plan:
+        upsert_subscription(
+            subscriptions_path,
+            SubscriptionRecord(
+                customer_email=request.client_email,
+                plan_id=request.requested_plan,
+                payment_status="active",
+                stripe_customer_id=None,
+                stripe_subscription_id=None,
+                current_period_end=None,
+                updated_at=utc_now_iso(),
+            ),
+        )
+    return request
+
+
+def reject_billing_request(path: Path, request_id: str) -> ClientBillingRequest:
+    return set_billing_request_status(
+        path,
+        request_id,
+        "rejected",
+        admin_notes="Rejected from admin mock billing",
+    )
+
+
 def _project_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
@@ -368,6 +513,50 @@ def approve_request_cmd(
         resolve_project_path(clients_csv, root),
     )
     console.print(f"[green]Approved[/green] {request.request_id}")
+
+
+@cli.command("list-billing-requests")
+def list_billing_requests_cmd(
+    requests_path: str = typer.Option("data/client_billing_requests.csv", "--requests-path"),
+) -> None:
+    root = _project_root()
+    table = Table("ID", "Email", "Type", "Requested", "Status", "Created")
+    for request in load_billing_requests(resolve_project_path(requests_path, root)):
+        requested = request.requested_plan or request.addon
+        table.add_row(
+            request.request_id,
+            request.client_email,
+            request.request_type,
+            requested,
+            request.status,
+            request.created_at,
+        )
+    console.print(table)
+
+
+@cli.command("approve-billing-request")
+def approve_billing_request_cmd(
+    request_id: str = typer.Option(..., "--request-id"),
+    requests_path: str = typer.Option("data/client_billing_requests.csv", "--requests-path"),
+    subscriptions_path: str = typer.Option("data/subscriptions.csv", "--subscriptions-path"),
+) -> None:
+    root = _project_root()
+    request = approve_billing_request(
+        resolve_project_path(requests_path, root),
+        request_id,
+        resolve_project_path(subscriptions_path, root),
+    )
+    console.print(f"[green]Approved[/green] {request.request_id}")
+
+
+@cli.command("reject-billing-request")
+def reject_billing_request_cmd(
+    request_id: str = typer.Option(..., "--request-id"),
+    requests_path: str = typer.Option("data/client_billing_requests.csv", "--requests-path"),
+) -> None:
+    root = _project_root()
+    request = reject_billing_request(resolve_project_path(requests_path, root), request_id)
+    console.print(f"[yellow]Rejected[/yellow] {request.request_id}")
 
 
 def main() -> None:

@@ -28,6 +28,8 @@ class AdminClientRow:
     report_format: str
     max_links: int
     timeout: float
+    max_pages: int = 10
+    screenshot: bool = False
     payment_status: str = "unknown"
     plan_id: str = ""
     operational_status: str = "active"
@@ -58,6 +60,9 @@ def load_clients_for_admin(clients_csv: Path) -> list[AdminClientRow]:
                     footer_text=row.get("footer_text", ""),
                     report_format=row.get("format", "html") or "html",
                     max_links=_optional_int(row.get("max_links")) or 30,
+                    max_pages=_optional_int(row.get("max_pages")) or 10,
+                    screenshot=(row.get("screenshot") or "").strip().lower()
+                    in ("1", "true", "yes", "on"),
                     timeout=_optional_float(row.get("timeout")) or 10.0,
                 )
             )

@@ -28,6 +28,7 @@ REQUIRED_PROJECT_PATHS = (
     "app/admin_views.py",
     "app/client_portal.py",
     "app/client_views.py",
+    "app/client_analytics.py",
     "app/billing.py",
     "app/signups.py",
     "app/pipeline.py",
@@ -73,6 +74,7 @@ GITIGNORE_REQUIRED_PATTERNS = (
     "data/client_status.csv",
     "data/client_portal_sessions.csv",
     "data/client_settings_requests.csv",
+    "data/client_billing_requests.csv",
     ".env",
     "__pycache__/",
     "*.pyc",
@@ -142,6 +144,7 @@ GIT_ARTIFACT_MARKERS = (
     "data/weekly_jobs.local.json",
     "data/client_portal_sessions.csv",
     "data/client_settings_requests.csv",
+    "data/client_billing_requests.csv",
     ".env",
     "__pycache__",
     ".pytest_cache",
@@ -176,6 +179,7 @@ SMOKE_MODULES = (
     "app.billing",
     "app.signups",
     "app.client_portal",
+    "app.client_analytics",
     "app.backup",
 )
 
